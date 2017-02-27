@@ -52,6 +52,8 @@ component displayname="Category" entityname="SlatwallCategory" table="SwCategory
 	property name="categoryID" ormtype="string" length="32" fieldtype="id" generator="uuid" unsavedvalue="" default="";
 	property name="categoryIDPath" ormtype="string" length="4000";
 	property name="categoryName" ormtype="string";
+	property name="categoryDescription" ormtype="string" length="4000" hb_formFieldType="wysiwyg";
+	property name="urlTitle" ormtype="string";
 	property name="restrictAccessFlag" ormtype="boolean";
 	property name="allowProductAssignmentFlag" ormtype="boolean";
 	
@@ -66,7 +68,7 @@ component displayname="Category" entityname="SlatwallCategory" table="SwCategory
 	property name="childCategories" singularname="childCategory" cfc="Category" type="array" fieldtype="one-to-many" fkcolumn="parentCategoryID" cascade="all-delete-orphan" inverse="true";
 	
 	// Related Object Properties (many-to-many - inverse)
-	property name="products" singularname="product" cfc="Product" fieldtype="many-to-many" linktable="SwProductCategory" fkcolumn="categoryID" inversejoincolumn="productID" inverse="true";
+	property name="products" singularname="product" cfc="Product" type="array" fieldtype="many-to-many" linktable="SwProductCategory" fkcolumn="categoryID" inversejoincolumn="productID" inverse="true";
 	property name="contents" singularname="content" cfc="Content" type="array" fieldtype="many-to-many" linktable="SwContentCategory" fkcolumn="categoryID" inversejoincolumn="contentID" inverse="true";
 	
 	// Remote properties
@@ -74,9 +76,9 @@ component displayname="Category" entityname="SlatwallCategory" table="SwCategory
 	
 	// Audit Properties
 	property name="createdDateTime" hb_populateEnabled="false" ormtype="timestamp";
-	property name="createdByAccount" hb_populateEnabled="false" cfc="Account" fieldtype="many-to-one" fkcolumn="createdByAccountID";
+	property name="createdByAccountID" hb_populateEnabled="false" ormtype="string";
 	property name="modifiedDateTime" hb_populateEnabled="false" ormtype="timestamp";
-	property name="modifiedByAccount" hb_populateEnabled="false" cfc="Account" fieldtype="many-to-one" fkcolumn="modifiedByAccountID";
+	property name="modifiedByAccountID" hb_populateEnabled="false" ormtype="string";
 	
 	// Non-Persistent Properties
 
@@ -97,11 +99,25 @@ component displayname="Category" entityname="SlatwallCategory" table="SwCategory
 		arguments.childCategory.removeParentCategory( this );    
 	}
 	
+	// Products (many-to-many - inverse)
+ 	public void function addProduct(required any product) {
+ 		arguments.product.addCategory( this );
+ 	}
+ 	public void function removeProduct(required any product) {
+ 		arguments.product.removeCategory( this );
+ 	}
+
 	// Parent Category (many-to-one)
-	public void function setParentCategory(required any parentCategory) {
-		variables.parentCategory = arguments.parentCategory;
-		if(isNew() or !arguments.parentCategory.hasChildCategory( this )) {
-			arrayAppend(arguments.parentCategory.getChildCategories(), this);
+	public void function setParentCategory(any parentCategory) {
+		
+		if ( !isNull(arguments.parentCategory) ){
+			variables.parentCategory = arguments.parentCategory;
+			
+			if( isNew() || !arguments.parentCategory.hasChildCategory( this ) ) {
+				arrayAppend(arguments.parentCategory.getChildCategories(), this);
+			}
+		}else{
+			variables.parentCategory = javaCast('null', '');
 		}
 	}
 	public void function removeParentCategory(any parentCategory) {
@@ -131,6 +147,12 @@ component displayname="Category" entityname="SlatwallCategory" table="SwCategory
 	public void function preUpdate(struct oldData){
 		super.preUpdate(argumentcollection=arguments);
 		setCategoryIDPath( buildIDPathList( "parentCategory" ) );
+	}
+	
+	public any function getChildCategoriesSmartList(){
+		var sl = getService('ContentService').getCategorySmartList();
+		sl.addFilter('parentCategory.categoryID',this.getCategoryID());
+		return sl;
 	}
 	
 	// ===================  END:  ORM Event Hooks  =========================

@@ -65,7 +65,7 @@ component displayname="Comment" entityname="SlatwallComment" table="SwComment" p
 	
 	// Audit Properties
 	property name="createdDateTime" hb_populateEnabled="false" ormtype="timestamp";
-	property name="createdByAccount" hb_populateEnabled="false" cfc="Account" fieldtype="many-to-one" fkcolumn="createdByAccountID";
+	property name="createdByAccountID" hb_populateEnabled="false" ormtype="string";
 	
 	// Non-Persistent Properties
 	property name="primaryRelationship" persistent="false";
@@ -93,7 +93,11 @@ component displayname="Comment" entityname="SlatwallComment" table="SwComment" p
 		}
 		return variables.commentWithLinks;
 	}
-	
+
+    public boolean function canEdit(){
+        return this.isNew() || this.getCreatedByAccount().getAccountID() == getHibachiScope().getAccount().getAccountID();
+    }
+
 	// ============  END:  Non-Persistent Property Methods =================
 		
 	// ============= START: Bidirectional Helper Methods ===================
@@ -117,12 +121,6 @@ component displayname="Comment" entityname="SlatwallComment" table="SwComment" p
 	// ==================  END:  Overridden Methods ========================
 	
 	// =================== START: ORM Event Hooks  =========================
-	
-	public void function preUpdate(struct oldData) {
-		if(oldData.comment != variables.comment) {
-			throw("You cannot update a comment because this would display a fundamental flaw in comment management.");	
-		}
-	}
 	
 	// ===================  END:  ORM Event Hooks  =========================
 }

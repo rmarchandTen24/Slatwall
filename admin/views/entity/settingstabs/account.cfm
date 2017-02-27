@@ -46,12 +46,26 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../../tags" />
+<cfimport prefix="hb" taglib="../../../../org/Hibachi/HibachiTags" />
+<cfparam name="rc.sitesArray" />
 <cfoutput>
-	<cf_SlatwallSettingTable showInheritance="false">
-		<cf_SlatwallSetting settingName="accountEligiblePaymentMethods" />
-		<cf_SlatwallSetting settingName="accountEligiblePaymentTerms" />
-		<cf_SlatwallSetting settingName="accountPaymentTerm" />
-		<cf_SlatwallSetting settingName="accountTermCreditLimit" />
-	</cf_SlatwallSettingTable>
+	<swa:SlatwallSettingTable showFilterEntities="#arrayLen(rc.sitesArray)#" showInheritance="false">
+		<swa:SlatwallSetting settingName="accountHTMLTitleString" />
+		<swa:SlatwallSetting settingName="accountMetaDescriptionString" />
+		<swa:SlatwallSetting settingName="accountMetaKeywordsString" />
+		<swa:SlatwallSetting settingName="accountEligiblePaymentMethods" />
+		<swa:SlatwallSetting settingName="accountEligiblePaymentTerms" />
+		<swa:SlatwallSetting settingName="accountPaymentTerm" />
+		<swa:SlatwallSetting settingName="accountTermCreditLimit" />
+		<swa:SlatwallSetting settingName="accountFailedAdminLoginAttemptCount" />
+		<swa:SlatwallSetting settingName="accountFailedPublicLoginAttemptCount" />
+		<swa:SlatwallSetting settingName="accountAdminForcePasswordResetAfterDays" />
+		<swa:SlatwallSetting settingName="accountLockMinutes" />
+		<!--- Site Specific Settings --->
+		<cfloop array="#rc.sitesArray#" index="site">
+			<swa:SlatwallSetting settingName="accountDisplayTemplate" settingFilterEntities="#[site]#" />
+		</cfloop>
+	</swa:SlatwallSettingTable>
 </cfoutput>
 

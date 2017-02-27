@@ -66,9 +66,9 @@ component displayname="Access" entityname="SlatwallAccess" table="SwAccess" pers
 	
 	// Audit Properties
 	property name="createdDateTime" hb_populateEnabled="false" ormtype="timestamp";
-	property name="createdByAccount" hb_populateEnabled="false" cfc="Account" fieldtype="many-to-one" fkcolumn="createdByAccountID";
+	property name="createdByAccountID" hb_populateEnabled="false" ormtype="string";
 	property name="modifiedDateTime" hb_populateEnabled="false" ormtype="timestamp";
-	property name="modifiedByAccount" hb_populateEnabled="false" cfc="Account" fieldtype="many-to-one" fkcolumn="modifiedByAccountID";
+	property name="modifiedByAccountID" hb_populateEnabled="false" ormtype="string";
 	
 	// Non-Persistent Properties
 
@@ -86,7 +86,11 @@ component displayname="Access" entityname="SlatwallAccess" table="SwAccess" pers
 	// =============== START: Custom Validation Methods ====================
 	
 	public boolean function hasUsageOrUsageBenefitOrUsageBenefitAccount() {
-		if(!isNull(getSubscriptionUsage()) || !isNull(getSubscriptionUsageBenefit()) || !isNull(getsubscriptionUsageBenefitAccount())) {
+		if(
+			!isNull(getSubscriptionUsage()) 
+			|| !isNull(getSubscriptionUsageBenefit()) 
+			|| !isNull(getsubscriptionUsageBenefitAccount())
+		) {
 			return true;
 		}
 		return false;

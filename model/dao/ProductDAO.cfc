@@ -49,25 +49,29 @@ Notes:
 <cfcomponent accessors="true" extends="HibachiDAO">
 	
 	<cfscript>
-		public array function getAttributeSets(required array attributeSetTypeCode,required array productTypeIDs){
-			var hql = " FROM SlatwallAttributeSet sas
-						WHERE (exists(FROM sas.attributes sa WHERE sa.activeFlag = 1)
-							AND sas.attributeSetType.systemCode IN (:attributeSetTypeCode)) ";
-			if(arrayLen(arguments.productTypeIDs)){
-				hql &= " AND (sas.globalFlag = 1
-							OR exists(FROM sas.attributeSetAssignments asa WHERE asa.productTypeID IN (:productTypeIDs)))";
-			} else {
-				hql &= " AND sas.globalFlag = 1";
-			}			 
-			hql &= " ORDER BY sas.attributeSetType.systemCode ASC, sas.sortOrder ASC";
-			
-			// TODO: Remove this conditional when railo and ACF match how they handle arrays for 'IN' clause
-			if(arrayLen(arguments.productTypeIDs)){
-				var returnQuery = ormExecuteQuery(hql, {productTypeIDs=arguments.productTypeIDs, attributeSetTypeCode=arrayToList(arguments.attributeSetTypeCode)});
-			} else {
-				var returnQuery = ormExecuteQuery(hql, {attributeSetTypeCode=arguments.attributeSetTypeCode});
-			}
-			return returnQuery;
+		public void function setSkusAsInactiveByProduct(required any product){
+			setSkusAsInactiveByProductID(arguments.product.getProductID());
+		}
+		
+		public void function setSkusAsInactiveByProductID(required string productID){
+			var updateQuery = new Query();
+			var sql = '
+				UPDATE SwSku
+				SET activeFlag=0, publishedFlag=0
+				WHERE productID = :productID
+			';
+			updateQuery.addParam(name="productID",value=arguments.productID,cfsqltype="cf_sql_varchar");
+			updateQuery.execute(sql=sql);
+		}
+		
+		public numeric function getProductRating(required any product){
+			return OrmExecuteQuery('
+				SELECT COALESCE(avg(pr.rating), 0)
+				FROM SlatwallProductReview pr 
+				WHERE pr.product = :product
+				AND pr.activeFlag = 1
+				',{product=arguments.product},true
+			);
 		}
 		
 		public void function loadDataFromFile(required string fileURL, string textQualifier = ""){
@@ -436,6 +440,31 @@ Notes:
 			return result;
 		}
 	</cfscript>
+	
+	<cffunction name="removeProductFromRelatedProducts">
+		<cfargument name="productID" type="string" required="true" >
+		
+		<cfset var rs = "" />
+		
+		<cfquery name="rs">
+			DELETE FROM
+				SwRelatedProduct
+			WHERE
+				productID = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.productID#" />
+			  OR
+			  	relatedProductID = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.productID#" />
+		</cfquery>
+	</cffunction>
 	 
+	<cffunction name="updateProductProductType" hint="Moves all products from one product type to another">
+		<cfargument name="fromProductTypeID" type="string" required="true" >
+		<cfargument name="toProductTypeID" type="string" required="true" >
+		<cfquery name="local.updateProduct" >
+			UPDATE SwProduct 
+			SET productTypeID = <cfqueryparam value="#arguments.toProductTypeID#" cfsqltype="cf_sql_varchar" >
+			WHERE productTypeID = <cfqueryparam value="#arguments.fromProductTypeID#" cfsqltype="cf_sql_varchar" >
+		</cfquery>
+	</cffunction>
+	
 </cfcomponent>
 

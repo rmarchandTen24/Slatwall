@@ -68,6 +68,10 @@ component extends="Slatwall.org.Hibachi.HibachiObject" {
 		return [];
 	} 
 	
+	public array function getMenuItems() {
+		return [];
+	}
+	
 	public string function getAdminNavbarHTML() {
 		return '';
 	}
@@ -81,7 +85,7 @@ component extends="Slatwall.org.Hibachi.HibachiObject" {
 		if(structKeyExists(getIntegration().getSettings(), arguments.settingName)) {
 			return getService("settingService").getSettingValue(settingName="integration#getPackageName()##arguments.settingName#", object=this, filterEntities=arguments.filterEntities, formatValue=arguments.formatValue);	
 		}
-		return super.setting(argumentcollection=arguments);
+		return getService("settingService").getSettingValue(settingName=arguments.settingName, object=this, filterEntities=arguments.filterEntities, formatValue=arguments.formatValue);
 	}
 	
 	// @hint helper function to return the integration entity that this belongs to

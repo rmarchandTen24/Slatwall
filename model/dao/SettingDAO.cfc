@@ -76,19 +76,20 @@ Notes:
 		<cfargument name="settingName" type="string" required="true" />
 		<cfargument name="settingRelationships" type="struct" default="#structNew()#" />
 		
-		<cfset var potentialRelationships = "accountID,contentID,brandID,emailID,emailTemplateID,fulfillmentMethodID,paymentMethodID,productID,productTypeID,shippingMethodID,shippingMethodRateID,siteID,skuID,subscriptionTermID,subscriptionUsageID,taskID" />
+		<cfset var potentialRelationships = "accountID,contentID,brandID,emailID,emailTemplateID,fulfillmentMethodID,locationID,locationConfigurationID,paymentMethodID,productID,productTypeID,shippingMethodID,shippingMethodRateID,siteID,skuID,subscriptionTermID,subscriptionUsageID,taskID" />
 		<cfset var relationship = "">
 		<cfset var rs = "">
 		
 		<cfquery name="rs" >
 			SELECT
 				settingID,
-				settingValue
+				settingValue,
+				settingValueEncryptGen
 			FROM
 				SwSetting
 			WHERE
 				LOWER(settingName) = <cfqueryparam cfsqltype="cf_sql_varchar" value="#LCASE(arguments.settingName)#">
-				<cfloop list="#potentialRelationships#" index="relationship">
+				<cfloop list="#potentialRelationships#" index="local.relationship">
 					<cfif structKeyExists(arguments.settingRelationships, relationship)>
 						AND #relationship# = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.settingRelationships[ relationship ]#" > 
 					<cfelse>

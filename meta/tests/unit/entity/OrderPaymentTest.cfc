@@ -72,6 +72,175 @@ component extends="Slatwall.meta.tests.unit.entity.SlatwallEntityTestBase" {
 		
 		assert(variables.entity.getSucessfulPaymentTransactionExistsFlag());
 	}
+	
+	public void function getPeerOrderPaymentNullAmountExistsFlag_returns_true_when_should(){ 
+		var orderTrueData = { 
+			orderID = '',
+			orderPayments=[
+				{
+					orderPaymentID='',
+					orderPaymentStatusType={
+						orderPaymentStatusTypeID = '5accbf57dcf5bb3eb71614febe83a31d'	
+					}
+				},
+				{ 
+					orderPaymentID='', 
+					orderPaymentStatusType={
+						orderPaymentStatusTypeID = '5accbf57dcf5bb3eb71614febe83a31d'	
+					}
+				}
+			]
+		}; 
+		
+		var orderFalseData = { 
+			orderID = '',
+			orderPayments=[
+				{
+					orderPaymentID='',
+					orderPaymentStatusType={
+						orderPaymentStatusTypeID = '5accbf58a94b61fe031f854ffb220f4b'	
+					}
+				}
+			]
+		};
+		
+		var order1 = createPersistedTestEntity('order', orderTrueData);
+		var order2 = createPersistedTestEntity('order', orderFalseData);
+		
+		assertTrue(order1.getOrderPayments()[2].getPeerOrderPaymentNullAmountExistsFlag()); 
+		assertFalse(order1.getOrderPayments()[1].getPeerOrderPaymentNullAmountExistsFlag()); 
+		assertFalse(order2.getOrderPayments()[1].getPeerOrderPaymentNullAmountExistsFlag()); 
+	}
+	
+	public void function setBillingAccountAddress_updates_billingAddress() {
+		
+		var accountAddressDataOne = {
+			address = {
+				addressID = "",
+				streetAddress = "123 Main Street"
+			}
+		};
+		var accountAddressDataTwo = {
+			address = {
+				addressID = "",
+				streetAddress = "456 Main Street"
+			}
+		};
+		var accountAddressOne = createPersistedTestEntity( 'AccountAddress', accountAddressDataOne );
+		var accountAddressTwo = createPersistedTestEntity( 'AccountAddress', accountAddressDataTwo );
+		
+		variables.entity.setBillingAccountAddress( accountAddressOne );
+		
+		assertEquals( accountAddressDataOne.address.streetAddress, variables.entity.getBillingAddress().getStreetAddress() );
+		
+		variables.entity.setBillingAccountAddress( accountAddressTwo );
+		
+		assertEquals( accountAddressDataTwo.address.streetAddress, variables.entity.getBillingAddress().getStreetAddress() );
+
+	}
+	
+	public void function setBillingAccountAddress_updates_billingAddress_without_creating_a_new_one() {
+		addressDataOne = {
+			streetAddress = '123 Main Street'
+		};
+		var accountAddressDataOne = {
+			address = {
+				addressID = "",
+				streetAddress = "456 Main Street"
+			}
+		};
+		var billingAddress = createPersistedTestEntity( 'Address', addressDataOne );
+		var accountAddress = createPersistedTestEntity( 'AccountAddress', accountAddressDataOne );
+		
+		variables.entity.setBillingAddress( billingAddress );
+		
+		assertEquals( addressDataOne.streetAddress, variables.entity.getBillingAddress().getStreetAddress() );
+		assertEquals( billingAddress.getAddressID(), variables.entity.getBillingAddress().getAddressID() );
+		
+		variables.entity.setBillingAccountAddress( accountAddress );
+		
+		assertEquals( accountAddressDataOne.address.streetAddress, variables.entity.getBillingAddress().getStreetAddress() );
+		assertEquals( billingAddress.getAddressID(), variables.entity.getBillingAddress().getAddressID() );
+	}
+	
+	public void function setBillingAccountAddress_doesnt_updates_billingAddress_when_same_aa_as_before() {
+		var accountAddressDataOne = {
+			address = {
+				addressID = "",
+				streetAddress = "456 Main Street"
+			}
+		};
+		
+		var accountAddress = createPersistedTestEntity( 'AccountAddress', accountAddressDataOne );
+		
+		variables.entity.setBillingAccountAddress( accountAddress );
+		
+		assertEquals( accountAddressDataOne.address.streetAddress, variables.entity.getBillingAddress().getStreetAddress() );
+		
+		variables.entity.getBillingAddress().setStreetAddress('123 Main Street');
+		
+		variables.entity.setBillingAccountAddress( accountAddress );
+		
+		assertEquals( '123 Main Street', variables.entity.getBillingAddress().getStreetAddress() );
+		
+	}
+	
+	public void function test_gift_card_transaction_relation(){ 
+		var orderPaymentData = { 
+			orderPaymentID="",
+			amount="100.00"
+		};
+		
+		var giftCardTransactionData = { 
+			giftCardTransactionID="",
+			credit="100.00"
+		};
+		
+		var orderPayment = createPersistedTestEntity('orderPayment', orderPaymentData); 
+		var giftCardTransaction = createPersistedTestEntity('giftCardTransaction', giftCardTransactionData);
+		
+		orderPayment.addGiftCardTransaction(giftCardTransaction); 
+		
+		assertTrue(orderPayment.hasGiftCardTransaction(giftCardTransaction)); 
+		
+		orderPayment.removeGiftCardTransaction(giftCardTransaction); 
+		
+		assertFalse(orderPayment.hasGiftCardTransaction(giftCardTransaction)); 
+	}
+	
+	private any function createMockOrderPayment(string orderID='', string orderTypeID='', numeric amount) {
+	 	var orderPaymentData = {
+	 		orderPaymentID = ''
+	 	};
+	 	if(len(arguments.orderID)) {
+	 		orderPaymentData.order = {
+	 			orderID = arguments.orderID
+	 		};
+	 	}
+	 	if(len(arguments.orderTypeID)) {
+	 		orderPaymentType = {
+	 			typeID = arguments.orderTypeID
+	 		};
+	 	}
+	 	if(!isNull(arguments.amount)) {
+	 		orderPaymentData.amount = arguments.amount;
+	 	}
+	 	return createPersistedTestEntity('OrderPayment', orderPaymentData);
+	 }
+	 
+	public void function getDynamicAmountFlagTest() {
+		//Testing the true
+		var mockOrderPayment = createMockOrderPayment(amount = 100);
+		
+		var resultAmountFlag1 = mockOrderPayment.getDynamicAmountFlag();
+		assertFalse(resultAmountFlag1);
+		
+		//Testing the false
+		var mockOrderPayment2 = createMockOrderPayment();
+		
+		var resultAmountFlag2 = mockorderPayment2.getDynamicAmountFlag();
+		assertTrue(resultAmountFlag2);
+	}
 }
 
 

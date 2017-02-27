@@ -47,67 +47,95 @@
 	
 --->
 <cfoutput>
-	<?xml version="1.0"?>
-	<AccessRequest>
-		<AccessLicenseNumber>#setting('apiKey')#</AccessLicenseNumber>
-		<UserId>#setting('username')#</UserId>
-		<Password>#setting('password')#</Password>
-	</AccessRequest>
-	<RatingServiceSelectionRequest xml:lang="en-US">
-		<Request>
-			<RequestOption>Shop</RequestOption>
-		</Request>
-		<PickupType>
-			<Code>#setting('pickupTypeCode')#</Code>
-		</PickupType>
-		<CustomerClassification>
-			<Code>#setting('customerClassificationCode')#</Code>
-		</CustomerClassification>
-		<Shipment>
-			<Shipper>
-				<Address>
-					<City>#setting('shipFromCity')#</City>
-					<StateProvinceCode>#setting('shipFromStateCode')#</StateProvinceCode>
-					<PostalCode>#setting('shipFromPostalCode')#</PostalCode>
-					<CountryCode>#setting('shipFromCountryCode')#</CountryCode>
-				</Address>
-                		<ShipperNumber>#setting('shipperNumber')#</ShipperNumber>
-			</Shipper>
-			<ShipTo>
-				<Address>
-					<City>#arguments.requestBean.getShipToCity()#</City>
-					<StateProvinceCode>#arguments.requestBean.getShipToStateCode()#</StateProvinceCode>
-					<PostalCode>#arguments.requestBean.getShipToPostalCode()#</PostalCode>
-					<CountryCode>#arguments.requestBean.getShipToCountryCode()#</CountryCode>
-					<ResidentialAddressIndicator>1</ResidentialAddressIndicator>
-				</Address>
-			</ShipTo>
-			<ShipFrom>
-				<Address>
-					<City>#setting('shipFromCity')#</City>
-					<StateProvinceCode>#setting('shipFromStateCode')#</StateProvinceCode>
-					<PostalCode>#setting('shipFromPostalCode')#</PostalCode>
-					<CountryCode>#setting('shipFromCountryCode')#</CountryCode>
-				</Address>
-			</ShipFrom>
-			<ShipmentWeight>
-				<Weight>#arguments.requestBean.getTotalValue()#</Weight>
-			</ShipmentWeight>
-			<Package>
-				<PackagingType>
-					<Code>02</Code>
-				</PackagingType>
-				<PackageWeight>
-					<cfset weightlbs = arguments.requestBean.getTotalWeight( unitCode='lb' ) />
-					<cfif weightlbs lt 1>
-						<cfset weightlbs = 1 />
+{
+	"UPSSecurity": {
+	    "ServiceAccessToken":{
+	    	"AccessLicenseNumber": "#setting('apiKey')#"
+	    },
+	    "UserAccessToken":{
+	      "UserId": "#setting('username')#",
+      	  "Password": "#setting('password')#"
+	    }
+	    
+	},
+    "RateRequest": {
+      "Request": { "RequestOption": "Shop" },
+      "PickupType": { "Code": "#setting('pickupTypeCode')#" },
+      "CustomerClassification": { "Code": "#setting('customerClassificationCode')#" },
+      "Shipment": {
+        "Shipper": {
+          "Address": {
+            "City": "#setting('shipFromCity')#",
+            "StateProvinceCode": "#setting('shipFromStateCode')#",
+            "PostalCode": "#setting('shipFromPostalCode')#",
+            "CountryCode": "#setting('shipFromCountryCode')#"
+          },
+          "ShipperNumber": "#setting('shipperNumber')#"
+        },
+        "ShipTo": {
+          "Address": {
+            "City": "#arguments.requestBean.getShipToCity()#",
+            "StateProvinceCode": "#arguments.requestBean.getShipToStateCode()#",
+            "PostalCode": "#arguments.requestBean.getShipToPostalCode()#",
+            "CountryCode": "#arguments.requestBean.getShipToCountryCode()#",
+            "ResidentialAddressIndicator": "1"
+          }
+        },
+        "ShipFrom": {
+          "Address": {
+            "City": "#setting('shipFromCity')#",
+            "StateProvinceCode": "#setting('shipFromStateCode')#",
+            "PostalCode": "#setting('shipFromPostalCode')#",
+            "CountryCode": "#setting('shipFromCountryCode')#"
+          }
+        },
+        "ShipmentWeight": { "Weight": "#arguments.requestBean.getTotalWeight( unitCode='lb' )#" },
+        <!--- Set the total weight to a variable --->
+		<cfset local.totalWeight = arguments.requestBean.getTotalWeight( unitCode='lb' )>
+		<cfif local.totalWeight gt 150>
+			<cfset local.finalWeight = local.totalWeight MOD 150>
+			<cfloop index="count" from="1" to="#round(abs(local.totalWeight / 150))#">
+				
+			  "Package": {
+			    "PackagingType": { "Code": "02" },
+			    "PackageWeight": {
+			      "Weight": "150",
+			      "UnitOfMeasurement": { "Code": "LBS" }
+			    }
+			  }
+					
+			</cfloop>
+			<cfif local.finalWeight gt 0>
+				
+			  "Package": {
+			    "PackagingType": { "Code": "02" },
+				"PackageWeight": {
+					<cfif local.finalWeight lt 1>
+						"Weight":"1",
+					<cfelse>
+						"Weight":"#local.finalWeight#",
 					</cfif>
-					<Weight>#weightlbs#</Weight>
-					<UnitOfMeasurement>
-						<Code>LBS</Code>
-					</UnitOfMeasurement>
-				</PackageWeight>
-			</Package>
-		</Shipment>
-	</RatingServiceSelectionRequest>
+					"UnitOfMeasurement": { "Code": "LBS" }
+				}
+							
+			</cfif>
+		<cfelse>
+			
+		  "Package": {
+		    "PackagingType": { "Code": "02" },
+			"PackageWeight":{
+				<cfif arguments.requestBean.getTotalWeight( unitCode='lb' ) lt 1>
+					"Weight":"1",
+				<cfelse>
+					"Weight":"#arguments.requestBean.getTotalWeight( unitCode='lb' )#",	
+				</cfif>
+				"UnitOfMeasurement": { "Code": "LBS" }
+			}
+		  }
+			
+		</cfif>
+      }
+    }
+}
+	
 </cfoutput>

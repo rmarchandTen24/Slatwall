@@ -46,7 +46,7 @@
 	Notes:
 	
 --->
-<cfcomponent extends="handler" output="false" accessors="true">
+<cfcomponent extends="Handler" output="false" accessors="true">
 	
 	<cfproperty name="assignedSiteIDArray" type="array" />
 	
@@ -86,6 +86,7 @@
 
 	// Special Function to relay all events called in Slatwall over to mura
 	public void function onEvent( required any slatwallScope, required any eventName ) {
+		
 		if(structKeyExists(application,"appinitialized") && application.appinitialized) {
 			if(!structKeyExists(request.customMuraScopeKeys, "slatwall")) {
 				request.customMuraScopeKeys.slatwall = arguments.slatwallScope;	
@@ -145,7 +146,7 @@
 		<cfargument name="entity" type="any" required="true" />
 		
 		<cfif !isNull(arguments.entity.getCMSAccountID()) and len(arguments.entity.getCMSAccountID()) >
-			<cfquery name="rs">
+			<cfquery name="local.rs">
 				UPDATE
 					tusers
 				SET

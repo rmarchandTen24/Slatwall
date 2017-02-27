@@ -46,16 +46,22 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../../tags" />
+<cfimport prefix="hb" taglib="../../../../org/Hibachi/HibachiTags" />
+
 <cfparam name="rc.order" type="any" />
 
 <cfoutput>
 	
-	<cf_HibachiListingDisplay smartList="#rc.order.getOrderDeliveriesSmartList()#"
+	<hb:HibachiListingDisplay smartList="#rc.order.getOrderDeliveriesSmartList()#"
 							  recordDetailAction="admin:entity.detailorderdelivery">
 			
-		<cf_HibachiListingColumn tdclass="primary" propertyIdentifier="fulfillmentMethod.fulfillmentMethodName" />
-		<cf_HibachiListingColumn propertyIdentifier="createdDateTime" />
-		<cf_HibachiListingColumn propertyIdentifier="totalQuantityDelivered" />
+		<hb:HibachiListingColumn tdclass="primary" propertyIdentifier="fulfillmentMethod.fulfillmentMethodName" />
+		<hb:HibachiListingColumn propertyIdentifier="createdDateTime" />
+		<hb:HibachiListingColumn propertyIdentifier="trackingNumber" /> 
+		<hb:HibachiListingColumn propertyIdentifier="totalQuantityDelivered" />
+		<hb:HibachiListingColumn propertyIdentifier="location.locationName" />
 		
-	</cf_HibachiListingDisplay>
+		
+	</hb:HibachiListingDisplay>
 </cfoutput>

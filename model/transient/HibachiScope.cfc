@@ -54,10 +54,14 @@ component output="false" accessors="true" extends="Slatwall.org.Hibachi.HibachiS
 	property name="content" type="any";
 	property name="product" type="any";
 	property name="productType" type="any";
+	property name="address" type="any";
 	property name="site" type="any";
+	property name="app" type="any";
 	
 	// Slatwall specific request smartList properties
 	property name="productSmartList" type="any";
+	// Slatwall specific request collectin properties
+	property name="productCollectionList" type="any";
 	
 	// Slatwall Specific queue properties
 	property name="emailQueue" type="array";
@@ -74,12 +78,25 @@ component output="false" accessors="true" extends="Slatwall.org.Hibachi.HibachiS
 	
 	// ================= Overrides =================================
 	
+	public any function getCurrentRequestSite() {
+		var domain = listFirst(cgi.HTTP_HOST,':');
+		return getDAO('siteDAO').getSiteByDomainName(domain);
+	}
+
+	public any function getCurrentDomain() {
+		return listFirst(cgi.HTTP_HOST,':');
+	}
+	
 	public string function renderJSObject() {
 		var config = {};
 		config[ 'baseURL' ] = getApplicationValue('baseURL');
 		config[ 'action' ] = getApplicationValue('action');
 		config[ 'dateFormat' ] = setting('globalDateFormat');
 		config[ 'timeFormat' ] = setting('globalTimeFormat');
+		config[ 'rbLocale' ] = '#getRBLocale()#';
+		config[ 'debugFlag' ] = getApplicationValue('debugFlag');
+		config[ 'instantiationKey' ] = '#getApplicationValue('instantiationKey')#';
+		config[ 'applicationKey' ] = '#getApplicationValue('applicationKey')#';
 		
 		var returnHTML = '';
 		returnHTML &= '<script type="text/javascript" src="#getApplicationValue('baseURL')#/org/Hibachi/HibachiAssets/js/hibachi-scope.js"></script>';
@@ -137,6 +154,31 @@ component output="false" accessors="true" extends="Slatwall.org.Hibachi.HibachiS
 		return variables.productType;
 	}
 	
+	// Address
+	public any function getAddress() {
+		if(!structKeyExists(variables, "address")) {
+			variables.address = getService("addressService").newAddress();
+		}
+		return variables.address;
+	}
+	
+	// Display Route Entity
+	public any function getRouteEntity(entityName){
+		if (structKeyExists(variables, "routeEntity") && !isNull(arguments.entityName) && arrayLen(variables.routeEntity[arguments.entityName])) {
+			return variables.routeEntity[arguments.entityName][1];
+		}
+	}
+	
+	public any function setRouteEntity(entityName, entity) {
+		if (!structKeyExists(variables, "routeEntity")){
+			variables.routeEntity = {};
+		}
+		if (!structKeyExists(variables.routeEntity, "#arguments.entityName#")) {
+			variables.routeEntity[arguments.entityName] = [];
+		}
+		arrayAppend(variables.routeEntity[arguments.entityName], entity);
+	}
+	
 	// Site
 	public any function getSite() {
 		if(!structKeyExists(variables, "site")) {
@@ -162,6 +204,28 @@ component output="false" accessors="true" extends="Slatwall.org.Hibachi.HibachiS
 			}
 		}
 		return variables.productSmartList;
+	}
+	
+	// Product Collection List
+	public any function getProductCollectionList() {
+		if(!structKeyExists(variables, "productCollectionList")) {
+			variables.productCollectionList = getService("productService").getProductCollectionList(data=url);
+			variables.productCollectionList.setDistinct(true);
+			variables.productCollectionList.addFilter('activeFlag',1);
+			variables.productCollectionList.addFilter('publishedFlag',1);
+			variables.productCollectionList.addFilter('calculatedQATS','1','>');
+			if(
+				isBoolean(getContent().getProductListingPageFlag()) 
+				&& getContent().getProductListingPageFlag() 
+				&& isBoolean(getContent().setting('contentIncludeChildContentProductsFlag')) 
+				&& getContent().setting('contentIncludeChildContentProductsFlag')
+			){
+				variables.productCollectionList.addFilter('listingPages.contentIDPath',getContent().getContentIDPath()&"%",'like');
+			}else if(isBoolean(getContent().getProductListingPageFlag()) && getContent().getProductListingPageFlag()){
+				variables.productCollectionList.addFilter('listingPages.contentID',getContent.getContentID());
+			}
+		}
+		return variables.productCollectionList;
 	}
 	
 	// ================= Queue Helper Methods =====================
@@ -192,6 +256,89 @@ component output="false" accessors="true" extends="Slatwall.org.Hibachi.HibachiS
 		setSessionValue('printQueue', []);
 	}
 	
+	// =================== JS helper methods  ===========================
+
+	public any function getAvailableAccountPropertyList() {
+		return "accountID,firstName,lastName,company,remoteID,primaryPhoneNumber.accountPhoneNumberID,primaryPhoneNumber.phoneNumber,primaryEmailAddress.accountEmailAddressID,primaryEmailAddress.emailAddress,
+			primaryAddress.accountAddressID,
+			accountAddresses.accountAddressName,accountAddresses.accountAddressID,
+			accountAddresses.address.addressID,accountAddresses.address.streetAddress,accountAddresses.address.street2Address,accountAddresses.address.city,accountAddresses.address.statecode,accountAddresses.address.postalcode,accountAddresses.address.countrycode";
+	}
+	
+	public any function getAccountData(string propertyList) {
+		
+		var availablePropertyList = getAvailableAccountPropertyList();
+
+		availablePropertyList = ReReplace(availablePropertyList,"[[:space:]]","","all");
+
+		if(!structKeyExists(arguments,"propertyList") || trim(arguments.propertyList) == "") {
+			arguments.propertyList = availablePropertyList;
+		}
+		
+		var data = getService('hibachiUtilityService').buildPropertyIdentifierListDataStruct(getAccount(), arguments.propertyList, availablePropertyList);
+		
+		// add error messages
+		data["hasErrors"] = getAccount().hasErrors();
+		data["errors"] = getAccount().getErrors();
+		
+		// add process object error messages
+		data[ 'processObjects' ] = {};
+		for(var key in getAccount().getProcessObjects()) {
+			data[ 'processObjects' ][ key ] = {};
+			data[ 'processObjects' ][ key ][ 'hasErrors' ] = getAccount().getProcessObjects()[ key ].hasErrors();
+			data[ 'processObjects' ][ key ][ 'errors' ] = getAccount().getProcessObjects()[ key ].getErrors();
+		}
+		
+		return data;
+	}
+
+	public any function getAvailableCartPropertyList() {
+		return "orderID,orderOpenDateTime,calculatedTotal,subtotal,taxTotal,fulfillmentTotal,fulfillmentChargeAfterDiscountTotal,promotionCodeList,discountTotal,
+			orderItems.orderItemID,orderItems.price,orderItems.skuPrice,orderItems.currencyCode,orderItems.quantity,orderItems.extendedPrice,orderItems.extendedPriceAfterDiscount,orderItems.taxAmount,orderItems.taxLiabilityAmount,orderItems.parentOrderItemID,orderItems.productBundleGroupID,
+			orderItems.orderFulfillment.orderFulfillmentID,
+			orderItems.sku.skuID,orderItems.sku.skuCode,orderItems.sku.imagePath,orderItems.sku.imageFile,
+			orderItems.sku.product.productID,orderItems.sku.product.productName,orderItems.sku.product.productCode,orderItems.sku.product.urltitle,orderItems.sku.product.baseProductType,
+			orderItems.sku.product.brand.brandName,
+			orderItems.sku.product.productType.productTypeName,
+			orderFulfillments.orderFulfillmentID,orderFulfillments.fulfillmentCharge,orderFulfillments.currencyCode,
+			orderFulfillments.fulfillmentMethod.fulfillmentMethodID,orderFulfillments.fulfillmentMethod.fulfillmentMethodName,
+			orderFulfillments.shippingMethod.shippingMethodID,orderFulfillments.shippingMethod.shippingMethodName,
+			orderFulfillments.shippingAddress.addressID,orderFulfillments.shippingAddress.streetAddress,orderFulfillments.shippingAddress.street2Address,orderFulfillments.shippingAddress.city,orderFulfillments.shippingAddress.statecode,orderFulfillments.shippingAddress.postalcode,orderFulfillments.shippingAddress.countrycode,
+			orderFulfillments.shippingMethodOptions,orderFulfillments.shippingMethodRate.shippingMethodRateID,
+			orderFulfillments.totalShippingWeight,orderFulfillments.taxAmount,
+			orderPayments.orderPaymentID,orderPayments.amount,orderPayments.currencyCode,orderPayments.creditCardType,orderPayments.expirationMonth,orderPayments.expirationYear,orderPayments.nameOnCreditCard,
+			orderPayments.billingAddress.addressID,orderPayments.billingAddress.streetAddress,orderPayments.billingAddress.street2Address,orderPayments.billingAddress.city,orderPayments.billingAddress.statecode,orderPayments.billingAddress.postalcode,orderPayments.billingAddress.countrycode,
+			orderPayments.paymentMethod.paymentMethodID,orderPayments.paymentMethod.paymentMethodName,
+			promotionCodes.promotionCode";
+	}
+	
+	public any function getCartData(string propertyList) {
+		
+		var availablePropertyList = getAvailableCartPropertyList();
+		
+		availablePropertyList = ReReplace(availablePropertyList,"[[:space:]]","","all");
+		
+		if(!structKeyExists(arguments,"propertyList") || trim(arguments.propertyList) == "") {
+			arguments.propertyList = availablePropertyList;
+		}
+		
+		var data = getService('hibachiUtilityService').buildPropertyIdentifierListDataStruct(getCart(), arguments.propertyList, availablePropertyList);
+		
+		// add error messages
+		data["hasErrors"] = getCart().hasErrors();
+		data["errors"] = getCart().getErrors();
+		
+		// add process object error messages
+		data[ 'processObjects' ] = {};
+		for(var key in getCart().getProcessObjects()) {
+			data[ 'processObjects' ][ key ] = {};
+			data[ 'processObjects' ][ key ][ 'hasErrors' ] = getCart().getProcessObjects()[ key ].hasErrors();
+			data[ 'processObjects' ][ key ][ 'errors' ] = getCart().getProcessObjects()[ key ].getErrors();
+		}
+		
+		return data;
+	}
+
 	// =================== Image Access ===========================
 	
 	public string function getBaseImageURL() {
@@ -292,5 +439,12 @@ component output="false" accessors="true" extends="Slatwall.org.Hibachi.HibachiS
 		}
 	}
 	
+	public any function slatProcess(required string slatProcess){
+		return getService('sessionService').processSession(getSession(), arguments.slatProcess);
+	}
+	
+	public boolean function onSlatwallCMS(){
+		return !isNull(getHibachiScope().getSite()) && !isNull(getHibachiScope().getSite().getApp());
+	}
 	
 }

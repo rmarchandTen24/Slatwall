@@ -50,8 +50,8 @@ component entityname="SlatwallFileRelationship" table="SwFileRelationship" persi
 	
 	// Persistent Properties
 	property name="fileRelationshipID" ormtype="string" length="32" fieldtype="id" generator="uuid" unsavedvalue="" default="";
-	property name="baseObject" ormType="string";
-	property name="baseID" ormType="string";
+	property name="baseObject" ormType="string" index="EI_BASEOBJECT";
+	property name="baseID" ormType="string" index="EI_BASEID";
 	// Calculated Properties
 
 	// Related Object Properties (many-to-one)
@@ -67,10 +67,10 @@ component entityname="SlatwallFileRelationship" table="SwFileRelationship" persi
 	property name="remoteID" ormtype="string";
 	
 	// Audit Properties
-	property name="createdDateTime" ormtype="timestamp";
-	property name="createdByAccount" cfc="Account" fieldtype="many-to-one" fkcolumn="createdByAccountID";
-	property name="modifiedDateTime" ormtype="timestamp";
-	property name="modifiedByAccount" cfc="Account" fieldtype="many-to-one" fkcolumn="modifiedByAccountID";
+	property name="createdDateTime" hb_populateEnabled="false" ormtype="timestamp";
+	property name="createdByAccountID" hb_populateEnabled="false" ormtype="string";
+	property name="modifiedDateTime" hb_populateEnabled="false" ormtype="timestamp";
+	property name="modifiedByAccountID" hb_populateEnabled="false" ormtype="string";
 	
 	// Non-Persistent Properties
 	

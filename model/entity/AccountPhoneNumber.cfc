@@ -1,6 +1,6 @@
 /*
 
-    Slatwall - An Open Source eCommerce Platform
+    Slatwall - An Open Source eCommerce Platform 
     Copyright (C) ten24, LLC
 	
     This program is free software: you can redistribute it and/or modify
@@ -50,21 +50,21 @@ component displayname="Account Phone Number" entityname="SlatwallAccountPhoneNum
 	
 	// Persistent Properties
 	property name="accountPhoneNumberID" ormtype="string" length="32" fieldtype="id" generator="uuid" unsavedvalue="" default="";
-	property name="phoneNumber" hb_populateEnabled="public" type="string";
+	property name="phoneNumber" hb_populateEnabled="public" ormtype="string";
 	
 	// Related Object Properties (Many-To-One)
 	property name="account" cfc="Account" fieldtype="many-to-one" fkcolumn="accountID";
 	property name="accountPhoneType" hb_populateEnabled="public" cfc="Type" fieldtype="many-to-one" fkcolumn="accountPhoneTypeID" hb_optionsNullRBKey="define.select" hb_optionsSmartListData="f:parentType.systemCode=accountPhoneType";
 	
-	// Audit properties
+	// Audit Properties
 	property name="createdDateTime" hb_populateEnabled="false" ormtype="timestamp";
-	property name="createdByAccount" hb_populateEnabled="false" cfc="Account" fieldtype="many-to-one" fkcolumn="createdByAccountID";
+	property name="createdByAccountID" hb_populateEnabled="false" ormtype="string";
 	property name="modifiedDateTime" hb_populateEnabled="false" ormtype="timestamp";
-	property name="modifiedByAccount" hb_populateEnabled="false" cfc="Account" fieldtype="many-to-one" fkcolumn="modifiedByAccountID";
+	property name="modifiedByAccountID" hb_populateEnabled="false" ormtype="string";
 	
 	
 	public string function getPhoneType() {
-		return getAccountPhoneType().getType();
+		return getAccountPhoneType().getTypeName();
 	}
 
 	// ============ START: Non-Persistent Property Methods =================
