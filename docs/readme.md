@@ -1,1 +1,1 @@
-github pages
+Best Practices Doc
