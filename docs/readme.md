@@ -187,7 +187,15 @@ All CFML and custom tags should be writing in lower case form, just like HTML ta
 <CFABORT>
 <CFDump Var="#session#">
 
--- Unecessary Multi Line --
+-- Multi Line DO THIS --
+<cfhttp url="#urladdress#" 
+	method="GET" 
+	resolveurl="Yes" 
+	throwOnError="Yes"
+/>
+
+
+-- Multi Line NOT THIS--
 <cfhttp url="#urladdress#" 
 method="GET" 
 resolveurl="Yes" 
