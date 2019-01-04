@@ -845,12 +845,5 @@ if( isDefined("arguments.car") )
 
 ## <a name="slatwall">Slatwall Specific Best Practices</a>
 
-* Leverage the `rc and prc` scopes directly instead of referencing the `event` object unless you need default values
-* Leverage `var` or `local` scope in the event handlers if those variables will NOT be used in layouts/views
-* Leverage the `prc` for data set/read safely within your application. Incoming data through the `rc` is NEVER to be trusted. This should remain as what a client sent into a request.
-* Do not mix `local` scope usage and `var` scope declared variables in your handlers. PICK ONE approach.
-* Do not create dual performing actions that respond to different HTTP verbs. Like a `list()` action that lists and saves to the database in a post. Create two actions, two concerns.
-* Always always always leverage injection via WireBox
-* Remember that all event handlers are singletons
 
 **[[⬆]](#TOC)**
