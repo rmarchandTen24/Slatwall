@@ -1,4 +1,4 @@
-# Ortus ColdFusion (CFML) Standards & Best Practices
+ColdFusion (CFML) Standards & Best Practices
 
 ## <a name='TOC'>Table of Contents</a>
 
@@ -359,13 +359,13 @@ When calling a function with 4 arguments or more go into multi-line layout:
 // DO THIS
 obj.callMethod( 
 	target 		= this,
-	name 		= "luis",
+	name 		= "ryan",
 	results		= true,
 	moreData 	= "false" 
 ); 
 
 // NOT THIS
-obj.callMethod( target=this, name="luis", results=true, moreData="false" ); 
+obj.callMethod( target=this, name="ryan", results=true, moreData="false" ); 
 ```
 
 
@@ -382,7 +382,7 @@ Try to always leave a start and ending whitespace for parenthesis code like in m
 // DO THIS
 obj.callMethod( 
 	target 		= this,
-	name 		= "luis",
+	name 		= "ryan",
 	results		= true,
 	moreData 	= "false" 
 ); 
@@ -396,7 +396,7 @@ for( var x=1; x lte 45; x++ ){
 return ( structKeyExists( local, "results" ) ? local.results : "null" );
 
 // NOT THIS
-obj.callMethod(target=this, name="luis", results=true, moreData="false"); 
+obj.callMethod(target=this, name="ryan", results=true, moreData="false"); 
 obj.test(this);
 obj.setData(1*total+4);
 if(x lt 4){
@@ -477,12 +477,12 @@ component{
 
 ### <a name="cfc-documentation">Documentation</a>
 
-Yes, you will need to document **ALL** of your code, from classes to property definitions to code blocks to arguments. Our preference is to write all logic in script and **not** in tags unless we are targeting a specific CFML Engine.  We leverage [DocBox](https://github.com/Ortus-Solutions/DocBox) for reading, parsing and creating documentation out of all CFCs in an application. Please also refer to the [Custom Anotations](https://github.com/Ortus-Solutions/DocBox/wiki/List-of-Custom-Annotations) that DocBox applies so you can extend the metadata in a CFC. The DockBlockr plugin is magnificent for this.
+Yes, you will need to document **ALL** of your code, from classes to property definitions to code blocks to arguments. Our preference is to write all logic in script and **not** in tags unless we are targeting a specific CFML Engine. 
 
 
 ``` js
 /**
-* @author Luis Majano
+* @author Ryan Marchand
 * My component documentation
 * goes here in multiple lines if needed
 * You can add <a href='http://www.docsite.org'>links</a> and valid HTML if needed
