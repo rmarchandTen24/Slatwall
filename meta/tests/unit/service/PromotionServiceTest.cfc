@@ -51,8 +51,12 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 	public void function setUp() {
 		super.setup();
 		variables.service = request.slatwallScope.getService("promotionService");
+		//variables.service = variables.mockService.getPromotionServiceMock();
 	}
 
+	/**
+	* @test
+	*/
 	public void function shouldAddNewPromotionTest(){
 		makePublic(variables.service,'shouldAddNewPromotion');
 
@@ -138,6 +142,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 
 	}
 
+	/**
+	* @test
+	*/
 	public void function setupPromotionRewardUsageDetailsTest(){
 		makePublic(variables.service,'setupPromotionRewardUsageDetails');
 
@@ -196,6 +203,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 
 	}
 
+	/**
+	* @test
+	*/
 	public void function clearPreviouslyAppliedPromotionsForOrderItemsTest(){
 		makePublic(variables.service,'clearPreviouslyAppliedPromotionsForOrderItems');
 		var orderData = {
@@ -230,6 +240,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 
 	}
 
+	/**
+	* @test
+	*/
 	public void function clearPreviouslyAppliedPromotionForOrderFulfillmentsTest(){
 		makePublic(variables.service,'clearPreviouslyAppliedPromotionsForOrderFulfillments');
 		//data setup begin
@@ -255,6 +268,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 
 	}
 
+	/**
+	* @test
+	*/
 	public void function clearPreviouslyAppledPromotionsForOrderTest(){
 		makePublic(variables.service,'clearPreviouslyAppliedPromotionsForOrder');
 		//data setup begin
@@ -281,6 +297,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertFalse(arraylen(order.getAppliedPromotions()));
 	}
 
+	/**
+	* @test
+	*/
 	public void function getDiscountAmount_amountOff_withRoundingRule_Test(){
 		makePublic(variables.service,'getDiscountAmount');
 		//args promotionReward, price, quantity
@@ -303,11 +322,14 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		var price = 8;
 		var quantity = 7;
 		//data setup end
-		//amountOff discountAmount = precisionEvaluate(originalAmount - roundedFinalAmount);
+		//amountOff discountAmount = val(precisionEvaluate(originalAmount - roundedFinalAmount));
 		var discountAmount = variables.service.getDiscountAmount(promotionReward,price,quantity);
 		assertEquals(discountAmount,39.01);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getDiscountAmount_amountOff_Test(){
 		makePublic(variables.service,'getDiscountAmount');
 		//args promotionReward, price, quantity
@@ -326,6 +348,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertEquals(discountAmount,38.85);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getDiscountAmount_percentageOff_Test(){
 		makePublic(variables.service,'getDiscountAmount');
 		//args promotionReward, price, quantity
@@ -339,11 +364,14 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		var price = 8;
 		var quantity = 7;
 		//data setup end
-		//percentage off precisionEvaluate(originalAmount * (reward.getAmount()/100))
+		//percentage off val(precisionEvaluate(originalAmount * (reward.getAmount()/100)))
 		var discountAmount = variables.service.getDiscountAmount(promotionReward,price,quantity);
 		assertEquals(discountAmount,11.2);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getDiscountAmount_amount_Test(){
 		makePublic(variables.service,'getDiscountAmount');
 		//args promotionReward, price, quantity
@@ -357,11 +385,14 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		var price = 8;
 		var quantity = 7;
 		//data setup end
-		//amount precisionEvaluate((arguments.price - reward.getAmount()) * arguments.quantity)
+		//amount val(precisionEvaluate((arguments.price - reward.getAmount()) * arguments.quantity))
 		var discountAmount = variables.service.getDiscountAmount(promotionReward,price,quantity);
 		assertEquals(discountAmount,42);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getSalePriceDetailsForProductSkusTest(){
 		//data setup begin
 		var productData = {
@@ -417,6 +448,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 
 	}
 
+	/**
+	* @test
+	*/
 	public void function applyTop1DiscountsTest(){
 		makePublic(variables.service,'applyTop1Discounts');
 		//data setup begin
@@ -479,6 +513,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 
 	}
 
+	/**
+	* @test
+	*/
 	public void function applyPromotionToOrderFulfillmentTest(){
 		makePublic(variables.service,'applyPromotionToOrderFulfillment');
 		//data setup begin
@@ -522,6 +559,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertEquals(orderFulfillment.getAppliedPromotions()[1].getDiscountAmount(),4);
 	}
 
+	/**
+	* @test
+	*/
 	public void function applyPromotionToOrderTest(){
 		makePublic(variables.service,'applyPromotionToOrder');
 		//data setup begin
@@ -557,6 +597,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertEquals(order.getAppliedPromotions()[1].getDiscountAmount(),42);
 	}
 
+	/**
+	* @test
+	*/
 	public void function removeDiscountsExceedingMaxOrderUseCountsTest(){
 
 		MakePublic(variables.service,'removeDiscountsExceedingMaxOrderUseCounts');
@@ -644,6 +687,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertEquals(orderItemQualifiedDiscounts[orderItem2.getOrderItemID()][1].promotionRewardID,promotionReward.getPromotionRewardID());
 	}
 
+	/**
+	* @test
+	*/
 	public void function getQualifierQualificationDetailsForOrderTest(){
 		makePublic(variables.service,'getQualifierQualificationDetailsForOrder');
 		//args qualifier,order
@@ -682,6 +728,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 
 	}
 
+	/**
+	* @test
+	*/
 	public void function getQualifierQualificationDetailsForOrderFulfillmentsTest(){
 		makePublic(variables.service,'getQualifierQualificationDetailsForOrderFulfillments');
 		//args qualifier,order, qualifierDetails
@@ -722,6 +771,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 
 	}
 
+	/**
+	* @test
+	*/
 	public void function getQualifierQualificationDetailsForOrderItemsTest(){
 
 		makePublic(variables.service,'getQualifierQualificationDetailsForOrderItems');
@@ -793,6 +845,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 
 	//getOrderItemInQualifierTests
 	//inclusions
+	/**
+	* @test
+	*/
 	public void function getOrderItemInQualifier_checkInclusions_hasProduct_Test(){
 		//args qualifier, orderItem
 		//returns boolean
@@ -833,6 +888,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertTrue(isOrderItemInQualifier);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInQualifier_checkInclusions_hasSku_Test(){
 		//args qualifier, orderItem
 		//returns boolean
@@ -872,6 +930,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertTrue(isOrderItemInQualifier);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInQualifier_checkInclusions_hasBrand_Test(){
 		//args qualifier, orderItem
 		//returns boolean
@@ -916,6 +977,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertTrue(isOrderItemInQualifier);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInQualifier_checkInclusions_hasAnyOption_Test(){
 		//args qualifier, orderItem
 		//returns boolean
@@ -962,6 +1026,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 
 	//exclusions
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInQualifier_hasExcludedProductType_Test(){
 		//args qualifier, orderItem
 		//returns boolean
@@ -1012,6 +1079,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 
 	}
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInQualifier_hasExcludedMinimumItemPriceGreaterThanPrice_Test(){
 		//args qualifier, orderItem
 		//returns boolean
@@ -1052,6 +1122,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertFalse(isOrderItemInQualifier);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInQualifier_hasExcludedMaximumItemPriceLessThanPrice_Test(){
 		//args qualifier, orderItem
 		//returns boolean
@@ -1091,6 +1164,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertFalse(isOrderItemInQualifier);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInQualifier_hasExcludedProduct_Test(){
 		//args qualifier, orderItem
 		//returns boolean
@@ -1134,6 +1210,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertFalse(isOrderItemInQualifier);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInQualifier_hasExcludedBrand_Test(){
 		//args qualifier, orderItem
 		//returns boolean
@@ -1182,6 +1261,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertFalse(isOrderItemInQualifier);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInQualifier_hasExcludedOption_Test(){
 		//args qualifier, orderItem
 		//returns boolean
@@ -1233,6 +1315,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 	//getOrderItemInReward Tests
 
 	//inclusions
+	/**
+	* @test
+	*/
 	public void function getOrderItemInReward_checkInclusions_hasProduct_Test(){
 		//args Reward, orderItem
 		//returns boolean
@@ -1281,6 +1366,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertTrue(isOrderItemInReward);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInReward_checkInclusions_hasSku_Test(){
 		//args Reward, orderItem
 		//returns boolean
@@ -1329,6 +1417,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertTrue(isOrderItemInReward);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInReward_checkInclusions_hasBrand_Test(){
 		//args Reward, orderItem
 		//returns boolean
@@ -1379,6 +1470,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertTrue(isOrderItemInReward);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInReward_checkInclusions_hasAnyOption_Test(){
 		//args Reward, orderItem
 		//returns boolean
@@ -1432,6 +1526,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 
 	//exclusions
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInReward_hasExcludedProductType_Test(){
 		//args Reward, orderItem
 		//returns boolean
@@ -1482,6 +1579,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 
 	}
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInReward_hasExcludedProduct_Test(){
 		//args Reward, orderItem
 		//returns boolean
@@ -1525,6 +1625,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertFalse(isOrderItemInReward);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInReward_hasExcludedBrand_Test(){
 		//args Reward, orderItem
 		//returns boolean
@@ -1573,6 +1676,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertFalse(isOrderItemInReward);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getOrderItemInReward_hasExcludedOption_Test(){
 		//args Reward, orderItem
 		//returns boolean
@@ -1621,6 +1727,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertFalse(isOrderItemInReward);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getPromotionPeriodQualifiedFulfillmentIDListTest(){
 		makePublic(variables.service,'getPromotionPeriodQualifiedFulfillmentIDList');
 		//args promotionPeriod, order
@@ -1671,6 +1780,9 @@ component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
 		assertEquals(listLen(QualifiedFulfillmentIDList),0);
 	}
 
+	/**
+	* @test
+	*/
 	public void function getPromotionPeriodOrderItemQualificationCountTest(){
 		makePublic(variables.service,'getPromotionPeriodOrderItemQualificationCount');
 		//args pormotionPeriod, orderItem,order

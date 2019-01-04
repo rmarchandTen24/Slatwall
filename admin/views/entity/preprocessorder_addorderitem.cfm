@@ -147,7 +147,7 @@ Notes:
 
 									<cfset loadFulfillmentMethodType = rc.processObject.getFulfillmentMethodIDOptions()[1]['fulfillmentMethodType'] />
 									<cfloop array="#rc.processObject.getFulfillmentMethodIDOptions()#" index="option">
-										<cfif option['value'] eq rc.processObject.getOrderFulfillmentID()>
+										<cfif option['value'] eq rc.processObject.getFulfillmentMethodID()>
 											<cfset loadFulfillmentMethodType = option['fulfillmentMethodType'] />
 										</cfif>
 									</cfloop>
@@ -162,9 +162,9 @@ Notes:
 
 									<!--- Pickup Fulfillment Details --->
 									<hb:HibachiDisplayToggle selector="select[name='fulfillmentMethodID']" valueAttribute="fulfillmentmethodtype" showValues="pickup" loadVisable="#loadFulfillmentMethodType eq 'pickup'#">
-
-										<!--- Pickup Location --->
-										<hb:HibachiPropertyDisplay object="#rc.processObject#" property="pickupLocationID" edit="#rc.edit#" />
+										<swa:SlatwallLocationTypeahead locationPropertyName="pickupLocationID" locationLabelText="#rc.$.slatwall.rbKey('entity.orderFulfillment.pickupLocation')#" edit="true" showActiveLocationsFlag="true"></swa:SlatwallLocationTypeahead>
+										
+										
 									</hb:HibachiDisplayToggle>
 
 									<!--- Shipping Fulfillment Details --->

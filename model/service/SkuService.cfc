@@ -111,7 +111,9 @@ component extends="HibachiService" persistent="false" accessors="true" output="f
 			for(var i=1; i<=arrayLen(skus); i++) {
 				var skuID = skus[i].getSkuID();
 				var index = arrayFind(sortedArray, skuID);
-				sortedArrayReturn[index] = skus[i];
+				if(index != 0){
+					sortedArrayReturn[index] = skus[i];
+				}
 			}
 
 			skus = sortedArrayReturn;
@@ -454,6 +456,15 @@ component extends="HibachiService" persistent="false" accessors="true" output="f
 
 	}
 
+	public any function processSku_addBundledSku(required any sku, required any processObject){
+		var bundledSku = this.newSkuBundle();
+		bundledSku.setBundledSku(arguments.processObject.getBundleSku());
+		bundledSku.setBundledQuantity(arguments.processObject.getQuantity());
+		bundledSku.setSku(arguments.sku);
+		this.saveSkuBundle(bundledSku);
+		return sku;
+	}
+
 	// TODO [paul]: makeup / breakup
 	public any function processSku_MakeupBundledSkus(required any sku, required any processObject) {
 
@@ -471,21 +482,28 @@ component extends="HibachiService" persistent="false" accessors="true" output="f
 		makeupItem.setToStock( makeupStock );
 
 		// Loop over every bundledSku
-		for(bundledSku in arguments.entity.getBundledSkus()) {
+		for(var bundledSku in arguments.entity.getBundledSkus()) {
 
 			var thisStock = getStockService().getStockBySkuAndLocation( sku=bundledSku.getBundledSku(), location=arguments.processObject.getLocation() );
-
-			var makeupItem = getStockService().newStockAdjustmentItem();
-			makeupItem.setStockAdjustment( stockAdjustment );
-			makeupItem.setQuantity( bundledSku.getBundledQuantity() );
-			makeupItem.setFromStock( thisStock );
-
+			var makeupQuantity = bundledSku.getBundledQuantity() * arguments.processObject.getQuantity();
+			if(thisStock.getQATS() >=  makeupQuantity){
+				var makeupItem = getStockService().newStockAdjustmentItem();
+				makeupItem.setStockAdjustment( stockAdjustment );
+				makeupItem.setQuantity( makeupQuantity );
+				makeupItem.setFromStock( thisStock );
+			}else{
+				arguments.sku.addError('stock','not enough inventory at location to makeup');
+				break;
+			}
 		}
 
-		getStockService().saveStockAdjustment(stockAdjustment);
+		if(!sku.hasErrors()){
+			getStockService().saveStockAdjustment(stockAdjustment);
 
-		stockAdjustment = getStockService().processStockAdjustment( stockAdjustment, {}, 'processAdjustment' );
-
+			stockAdjustment = getStockService().processStockAdjustment( stockAdjustment, {}, 'processAdjustment' );
+			getHibachiScope().addModifiedEntity(arguments.sku);
+		}
+		
 		return arguments.sku;
 	}
 
@@ -498,27 +516,36 @@ component extends="HibachiService" persistent="false" accessors="true" output="f
 		stockAdjustment.setFromLocation( arguments.processObject.getLocation() );
 
 		var breakupStock = getStockService().getStockBySkuAndLocation( sku=arguments.sku, location=arguments.processObject.getLocation() );
-
-		var breakupItem = getStockService().newStockAdjustmentItem();
-		breakupItem.setStockAdjustment( stockAdjustment );
-		breakupItem.setQuantity( arguments.processObject.getQuantity() );
-		breakupItem.setFromStock( breakupStock );
-
-		// Loop over every bundledSku
-		for(bundledSku in arguments.entity.getBundledSkus()) {
-
-			var thisStock = getStockService().getStockBySkuAndLocation( sku=bundledSku.getBundledSku(), location=arguments.processObject.getLocation() );
-
+		
+		if(breakupStock.getQATS() >= arguments.processObject.getQuantity()){
 			var breakupItem = getStockService().newStockAdjustmentItem();
 			breakupItem.setStockAdjustment( stockAdjustment );
-			breakupItem.setQuantity( bundledSku.getBundledQuantity() );
-			breakupItem.setToStock( thisStock );
-
+			breakupItem.setQuantity( arguments.processObject.getQuantity() );
+			breakupItem.setFromStock( breakupStock );
+			
+			// Loop over every bundledSku
+			for(var bundledSku in arguments.entity.getBundledSkus()) {
+				
+				var thisStock = getStockService().getStockBySkuAndLocation( sku=bundledSku.getBundledSku(), location=arguments.processObject.getLocation() );
+	
+				var breakupItem = getStockService().newStockAdjustmentItem();
+				breakupItem.setStockAdjustment( stockAdjustment );
+				breakupItem.setQuantity( bundledSku.getBundledQuantity() * arguments.processObject.getQuantity() );
+				breakupItem.setToStock( thisStock );
+	
+			}
+		}else{
+			arguments.sku.addError('stock','not enough inventory at location to breakup');
 		}
+		
+		
+		if(!arguments.sku.hasErrors()){
+			getStockService().saveStockAdjustment(stockAdjustment);
 
-		getStockService().saveStockAdjustment(stockAdjustment);
-
-		stockAdjustment = getStockService().processStockAdjustment( stockAdjustment, {}, 'processAdjustment' );
+			stockAdjustment = getStockService().processStockAdjustment( stockAdjustment, {}, 'processAdjustment' );
+			getHibachiScope().addModifiedEntity(arguments.sku);
+		}
+		
 
 		return arguments.sku;
 
@@ -549,6 +576,25 @@ component extends="HibachiService" persistent="false" accessors="true" output="f
 		}
 		return sku;
 	}
+
+	public any function processSku_move(required any sku, any processObject){
+		var originalProduct = arguments.sku.getProduct(); 
+		var isDefaultSku = originalProduct.getDefaultSku().getSkuID() == arguments.sku.getSkuID(); 	
+		
+		arguments.sku.setProduct(processObject.getProduct());
+		arguments.sku = this.saveSku(arguments.sku);		
+	
+		if(originalProduct.getSkusCount() == 1){
+			originalProduct.setSkus([]);
+			var success = getProductService().deleteProduct(originalProduct); 
+		} else if(isDefaultSku){
+			originalProduct.setDefaultSku(originalProduct.getSkus()[1]); 
+			originalProduct = getProductService().saveProduct(originalProduct); 
+		} 
+		
+		
+		return arguments.sku;
+	} 
 
 	// =====================  END: Process Methods ============================
 
@@ -586,6 +632,27 @@ component extends="HibachiService" persistent="false" accessors="true" output="f
 	}
 
 	// ======================  END: Save Overrides ============================
+	
+	// ====================== START: Delete Overrides =========================
+	
+	public boolean function deleteSku(required any sku) {
+
+		// Check delete validation
+		if(arguments.sku.isDeletable() && !isNull(arguments.sku.getProductSchedule())) {
+
+			var productSchedule = arguments.sku.getProductSchedule();
+			//If this is the only sku associated to the product schedule, remove it from the schedule and delete the sku
+			if (productSchedule.getSkusCount() == 1){
+				getService("ProductScheduleService").deleteProductSchedule(productSchedule);
+			}
+		
+		}
+
+		return delete( arguments.sku );
+	}
+	
+	// ======================  END: Delete Overrides ==========================
+
 
 	// ==================== START: Smart List Overrides =======================
 
@@ -749,6 +816,9 @@ component extends="HibachiService" persistent="false" accessors="true" output="f
 					for(var key in optionGroups) {
 						newSku.addOption( optionGroups[key][ currentIndexesByKey[key] ]);
 					}
+
+					newSku.setImageFile(newSku.generateImageFileName());
+
 					if(i < totalCombos) {
 						var indexesUpdated = false;
 						var changeKeyIndex = 1;

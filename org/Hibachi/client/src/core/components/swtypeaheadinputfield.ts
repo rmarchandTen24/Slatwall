@@ -4,8 +4,8 @@
 
 class SWTypeaheadInputFieldController {
     
-    public fieldName; 
-    public entityName;
+    public fieldName:string; 
+    public entityName:string;
     public typeaheadCollectionConfig; 
     public modelValue; 
     public columns = []; 
@@ -13,45 +13,45 @@ class SWTypeaheadInputFieldController {
     public propertiesToLoad; 
     public placeholderRbKey;
     public propertyToSave;
-    public allRecords;
-    public maxRecords; 
     public propertyToShow;
-    public validateRequired:boolean; 
+    public initialEntityId:string; 
+    public searchText:string;
+    public validateRequired:boolean;
+    public action:string;
+    public eventListeners;
+    public variables;
+    public titleText;
+    private collectionConfig;
+    private $root;
     
     // @ngInject
-	constructor(private $scope, 
-                private $q, 
-                private $transclude, 
-                private $hibachi, 
-                private $timeout:ng.ITimeoutService, 
-                private utilityService, 
-                private collectionConfigService
+    constructor(private $scope,
+                private $transclude,
+                private collectionConfigService,
+                private $rootScope,
+                private observerService
     ){
-        
-        if(angular.isUndefined(this.allRecords)){
-            this.allRecords = false; 
+        this.$root = $rootScope;
+
+        if( angular.isUndefined(this.typeaheadCollectionConfig)){
+            if(angular.isDefined(this.entityName)){
+                this.typeaheadCollectionConfig = collectionConfigService.newCollectionConfig(this.entityName);
+            } else {
+                throw("You did not pass the correct collection config data to swTypeaheadInputField");
+            }
         }
         
         if(angular.isUndefined(this.validateRequired)){
             this.validateRequired = false;
         }
 
-        if(angular.isUndefined(this.maxRecords)){
-            this.maxRecords = 100; 
-        }
-        
-        if(angular.isUndefined(this.entityName)){
-            throw("The typeahead input field directive requires an entity name.");
-        }
+        //get the collection config
+        this.$transclude($scope,()=>{});
+
         if(angular.isUndefined(this.propertyToSave)){
             throw("You must select a property to save for the input field directive")
         }
-               
-        this.typeaheadCollectionConfig = collectionConfigService.newCollectionConfig(this.entityName); 
-        
-        //populate the display list
-        this.$transclude($scope,()=>{});
-           
+
         if(angular.isDefined(this.propertiesToLoad)){
             this.typeaheadCollectionConfig.addDisplayProperty(this.propertiesToLoad);
         }
@@ -63,55 +63,81 @@ class SWTypeaheadInputFieldController {
         angular.forEach(this.filters, (filter)=>{
                 this.typeaheadCollectionConfig.addFilter(filter.propertyIdentifier, filter.comparisonValue, filter.comparisonOperator, filter.logicalOperator, filter.hidden);
         }); 
+        
+        if(angular.isDefined(this.initialEntityId) && this.initialEntityId.length){
+            this.modelValue = this.initialEntityId;
+        }
+
+        if(this.eventListeners){
+            for(var key in this.eventListeners){
+                observerService.attach(this.eventListeners[key], key)
+            }
+        }
     }
     
     public addFunction = (value:any) => {
-        this.modelValue = value[this.propertyToSave]; 
+
+        this.modelValue = value[this.propertyToSave];
+        if(this.action){
+            var data = {};
+            if(this.variables){
+                data = this.variables();
+            }
+            data['value'] = this.modelValue;
+            this.$root.slatwall.doAction(this.action, data);
+        }
     }
 
 }
 
 class SWTypeaheadInputField implements ng.IDirective{
 
-	public templateUrl;
+    public templateUrl;
     public transclude=true; 
-	public restrict = "EA";
-	public scope = {};
-    public priority = 100;
+    public restrict = "EA";
+    public scope = {};
 
-	public bindToController = {
+    public bindToController = {
         fieldName:"@",
         entityName:"@",
-        allRecords:"=?",
-        validateRequired:"=?", 
-        maxRecords:"@",
+        typeaheadCollectionConfig:"=?",
         propertiesToLoad:"@?",
         placeholderRbKey:"@?",
         propertyToShow:"@",
-        propertyToSave:"@"
-	};
-	public controller=SWTypeaheadInputFieldController;
-	public controllerAs="swTypeaheadInputField";
+        propertyToSave:"@",
+        initialEntityId:"@",
+        allRecords:"=?",
+        validateRequired:"=?", 
+        maxRecords:"@",
+        action:"@",
+        variables:'&?',
+        eventListeners:'=?',
+        placeholderText:'@?',
+        searchEndpoint:'@?',
+        titleText:'@?'
+    };
+    public controller=SWTypeaheadInputFieldController;
+    public controllerAs="swTypeaheadInputField";
 
     // @ngInject
-	constructor(private corePartialsPath,hibachiPathBuilder){
-		this.templateUrl = hibachiPathBuilder.buildPartialsPath(corePartialsPath) + "typeaheadinputfield.html";
-	}
+    constructor(private corePartialsPath,hibachiPathBuilder){
+        this.templateUrl = hibachiPathBuilder.buildPartialsPath(corePartialsPath) + "typeaheadinputfield.html";
+    }
 
-	public static Factory(){
-		var directive:ng.IDirectiveFactory = (
-			corePartialsPath
-            ,hibachiPathBuilder
-
-		)=> new SWTypeaheadInputField(
+    public static Factory(){
+        var directive:ng.IDirectiveFactory = (
             corePartialsPath
             ,hibachiPathBuilder
-		);
-		directive.$inject = ["corePartialsPath",'hibachiPathBuilder'];
-		return directive;
-	}
+
+        )=> new SWTypeaheadInputField(
+            corePartialsPath
+            ,hibachiPathBuilder
+        );
+        directive.$inject = ["corePartialsPath",'hibachiPathBuilder'];
+        return directive;
+    }
 }
 export{
-	SWTypeaheadInputField,
-	SWTypeaheadInputFieldController
+    SWTypeaheadInputField,
+    SWTypeaheadInputFieldController
 }

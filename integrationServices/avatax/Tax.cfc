@@ -71,9 +71,13 @@ component accessors="true" output="false" displayname="Vertex" implements="Slatw
 
 			var opSmartList = arguments.requestBean.getOrder().getOrderPaymentsSmartList();
 			opSmartList.addFilter('orderPaymentStatusType.systemCode', 'opstActive');
-			if(arrayLen(opSmartList.getRecords())) {
-				if(isNull(opSmartList.getRecords()[1].getCompanyPaymentMethodFlag()) || !opSmartList.getRecords()[1].getCompanyPaymentMethodFlag())  {
-					taxForce = true;
+			
+			if(arrayLen(opSmartList.getRecords(refresh=true))) {
+				for(var i = 1; i <= arrayLen(opSmartList.getRecords()); i++){
+					if(opSmartList.getRecords()[i].getAmount() > 0 && (isNull(opSmartList.getRecords()[i].getCompanyPaymentMethodFlag()) || !opSmartList.getRecords()[i].getCompanyPaymentMethodFlag()))  {
+						taxForce = true;
+						break;
+					}
 				}
 			}
 			
@@ -157,11 +161,7 @@ component accessors="true" output="false" displayname="Vertex" implements="Slatw
 					itemData.OriginCode = 1;
 					itemData.ItemCode = item.getOrderItem().getSku().getSkuCode();
 					itemData.TaxCode = item.getTaxCategoryRateCode();
-					if(!isNull(item.getOrderItem().getSku().getSkuDescription()) && len(item.getOrderItem().getSku().getSkuDescription())) {
-						itemData.Description = item.getOrderItem().getSku().getSkuDescription();
-					} else if (!isNull(item.getOrderItem().getSku().getProduct().getProductDescription()) && len(item.getOrderItem().getSku().getProduct().getProductDescription())) {
-						itemData.Description = item.getOrderItem().getSku().getProduct().getProductDescription();	
-					}
+					itemData.Description = item.getOrderItem().getSku().getProduct().getProductName();	
 					itemData.Qty = item.getQuantity();
 					itemData.Amount = item.getExtendedPriceAfterDiscount();
 					
@@ -175,7 +175,12 @@ component accessors="true" output="false" displayname="Vertex" implements="Slatw
 			// Setup Request to push to Avatax
 	        var httpRequest = new http();
 	        httpRequest.setMethod("POST");
-	        if(setting('testingFlag')) {
+	        var testingFlag = setting('testingFlag');
+	        if(!isNull(arguments.requestBean.getOrder()) && !isNull(arguments.requestBean.getOrder().getTestOrderFlag()) && arguments.requestBean.getOrder().getTestOrderFlag()){
+	        	testingFlag = arguments.requestBean.getOrder().getTestOrderFlag();
+	        }
+	        
+	        if(testingFlag) {
 	        	httpRequest.setUrl("https://development.avalara.net/1.0/tax/get");	
 	        } else {
 	        	httpRequest.setUrl("https://avatax.avalara.net/1.0/tax/get");

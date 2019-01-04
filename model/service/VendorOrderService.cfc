@@ -75,6 +75,7 @@ component extends="HibachiService" persistent="false" accessors="true" output="f
 	public any function getStockReceiverSmartList(string vendorOrderID) {
 		var smartList = getStockService().getStockReceiverSmartlist();	
 		smartList.addFilter("stockReceiverItems.vendorOrderItem.vendorOrder.vendorOrderID", arguments.vendorOrderID);
+		smartList.setSelectDistinctFlag(true);
 		return smartList;
 	}
 	
@@ -120,6 +121,7 @@ component extends="HibachiService" persistent="false" accessors="true" output="f
 		newVendorOrderItem.setVendorOrder( arguments.vendorOrder );
 		newVendorOrderItem.setCurrencyCode( arguments.vendorOrder.getCurrencyCode() );
 		newVendorOrderItem.setStock( deliverToLocation );
+		newVendorOrderItem.setSku( arguments.processObject.getSku() );
 		newVendorOrderItem.setQuantity( arguments.processObject.getQuantity() );
 		newVendorOrderItem.setCost( arguments.processObject.getCost() );
 		

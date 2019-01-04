@@ -50,7 +50,7 @@ component displayname="Order" entityname="SlatwallOrder" table="SwOrder" persist
 
 	// Persistent Properties
 	property name="orderID" ormtype="string" length="32" fieldtype="id" generator="uuid" unsavedvalue="" default="";
-	property name="orderNumber" ormtype="string";
+	property name="orderNumber" ormtype="string"  index="PI_ORDERNUMBER";
 	property name="currencyCode" ormtype="string" length="3";
 	property name="orderOpenDateTime" ormtype="timestamp";
 	property name="orderOpenIPAddress" ormtype="string";
@@ -58,6 +58,7 @@ component displayname="Order" entityname="SlatwallOrder" table="SwOrder" persist
 	property name="referencedOrderType" ormtype="string" hb_formatType="rbKey";
 	property name="estimatedDeliveryDateTime" ormtype="timestamp";
 	property name="estimatedFulfillmentDateTime" ormtype="timestamp";
+	property name="testOrderFlag" ormtype="boolean";
 	// Calculated Properties
 	property name="calculatedTotal" ormtype="big_decimal";
 
@@ -158,6 +159,7 @@ component displayname="Order" entityname="SlatwallOrder" table="SwOrder" persist
 	property name="totalQuantity" persistent="false";
 	property name="totalSaleQuantity" persistent="false";
 	property name="totalReturnQuantity" persistent="false";
+	property name="totalDepositAmount" persistent="false" hb_formatType="currency";
 	
     //======= Mocking Injection for Unit Test ======	
 	property name="orderService" persistent="false" type="any";
@@ -267,18 +269,33 @@ component displayname="Order" entityname="SlatwallOrder" table="SwOrder" persist
 		// If the order is open, and has no open dateTime
 		if((isNull(variables.orderNumber) || variables.orderNumber == "") && !isNUll(getOrderStatusType()) && !isNull(getOrderStatusType().getSystemCode()) && getOrderStatusType().getSystemCode() != "ostNotPlaced") {
 			if(setting('globalOrderNumberGeneration') == "Internal" || setting('globalOrderNumberGeneration') == "") {
-				var maxOrderNumber = getOrderService().getMaxOrderNumber();
-				if( arrayIsDefined(maxOrderNumber,1) ){
-					setOrderNumber(maxOrderNumber[1] + 1);
-				} else {
-					setOrderNumber(1);
+				if(getDao('hibachiDao').getApplicationValue('databaseType') == "MySQL"){
+					if(!isNull(this.getOrderID())){
+						var maxOrderNumberQuery = new query();
+						var maxOrderNumberSQL = 'insert into swordernumber (orderID,createdDateTime) VALUES (:orderID,:createdDateTime)';
+						
+						maxOrderNumberQuery.setSQL(maxOrderNumberSQL);
+						maxOrderNumberQuery.addParam(name="orderID",value=this.getOrderID());
+						maxOrderNumberQuery.addParam(name="createdDateTime",value=now(),cfsqltype="cf_sql_timestamp" );
+						var insertedID = maxOrderNumberQuery.execute().getPrefix().generatedKey;
+						
+						setOrderNumber(insertedID);	
+					}
+				}else{
+					var maxOrderNumber = getOrderService().getMaxOrderNumber();
+					if( arrayIsDefined(maxOrderNumber,1) ){
+						setOrderNumber(maxOrderNumber[1] + 1);
+					} else {
+						setOrderNumber(1);
+					}					
 				}
+			
 			} else {
 				setOrderNumber( getService("integrationService").getIntegrationByIntegrationPackage( setting('globalOrderNumberGeneration') ).getIntegrationCFC().getNewOrderNumber(order=this) );
 			}
 
 			setOrderOpenDateTime( now() );
-			setOrderOpenIPAddress( CGI.REMOTE_ADDR );
+			setOrderOpenIPAddress( getRemoteAddress() );
 
 			// Loop over the order payments to setAmount = getAmount so that any null payments get explicitly defined
 			for(var orderPayment in getOrderPayments()) {
@@ -424,7 +441,6 @@ component displayname="Order" entityname="SlatwallOrder" table="SwOrder" persist
     		&& !isNull(getShippingAddress()) 
     		&& !getShippingAddress().hasErrors()
     	  ) {
-
     		// Create a New Account Address, Copy over Shipping Address, and save
     		var accountAddress = getService('accountService').newAccountAddress();
     		if(!isNull(getSaveShippingAccountAddressName())) {
@@ -508,6 +524,10 @@ component displayname="Order" entityname="SlatwallOrder" table="SwOrder" persist
 			}
 		}
 		return discountTotal;
+	}
+
+	public numeric function getOrderAndItemDiscountAmountTotal(){
+		return getItemDiscountAmountTotal() + getOrderDiscountAmountTotal();
 	}
 
 	public numeric function getFulfillmentDiscountAmountTotal() {
@@ -647,16 +667,16 @@ component displayname="Order" entityname="SlatwallOrder" table="SwOrder" persist
 	}
 
 	public any function getDynamicChargeOrderPayment() {
-		var returnOrderPayment = javaCast("null", "");
+		var dynamicChargeOrderPayment = javaCast("null", "");
 		for(var orderPayment in getOrderPayments()) {
 			if(orderPayment.getStatusCode() eq "opstActive" && orderPayment.getOrderPaymentType().getSystemCode() eq 'optCharge' && orderPayment.getDynamicAmountFlag()) {
-				if(!orderPayment.getNewFlag() || isNull(returnOrderPayment)) {
-					returnOrderPayment = orderPayment;
+				if(isNull(dynamicChargeOrderPayment) || (orderPayment.getCreatedDateTime() > dynamicChargeOrderPayment.getCreatedDateTime() && !orderPayment.getNewFlag())) {
+					dynamicChargeOrderPayment = orderPayment;
 				}
 			}
 		}
-		if(!isNull(returnOrderPayment)) {
-			return returnOrderPayment;
+		if(!isNull(dynamicChargeOrderPayment)) {
+			return dynamicChargeOrderPayment;
 		}
 	}
 
@@ -736,7 +756,7 @@ component displayname="Order" entityname="SlatwallOrder" table="SwOrder" persist
 
 		for(var orderPayment in getOrderPayments()) {
 			if(orderPayment.getStatusCode() eq "opstActive") {
-				totalPaymentsReceived = getService('HibachiUtilityService').precisionCalculate(totalPaymentsReceived + orderPayment.getAmountReceived());
+totalPaymentsReceived = getService('HibachiUtilityService').precisionCalculate(totalPaymentsReceived + orderPayment.getAmountReceived());
 			}
 		}
 
@@ -781,7 +801,7 @@ component displayname="Order" entityname="SlatwallOrder" table="SwOrder" persist
 
 		for(var orderPayment in getOrderPayments()) {
 			if(orderPayment.getStatusCode() eq "opstActive") {
-				totalPaymentsCredited = getService('HibachiUtilityService').precisionCalculate(totalPaymentsCredited + orderPayment.getAmountCredited());
+				totalPaymentsCredited = val(precisionEvaluate(totalPaymentsCredited + orderPayment.getAmountCredited()));
 			}
 		}
 
@@ -794,7 +814,7 @@ component displayname="Order" entityname="SlatwallOrder" table="SwOrder" persist
 		for(var orderPayment in getOrderPayments()) {
 			for(var referencingOrderPayment in orderPayment.getReferencingOrderPayments()) {
 				if(referencingOrderPayment.getStatusCode() eq "opstActive") {
-					totalReferencingPaymentsCredited = getService('HibachiUtilityService').precisionCalculate(totalReferencingPaymentsCredited + referencingOrderPayment.getAmountCredited());
+					totalReferencingPaymentsCredited = val(precisionEvaluate(totalReferencingPaymentsCredited + referencingOrderPayment.getAmountCredited()));
 				}
 			}
 		}
@@ -955,7 +975,63 @@ component displayname="Order" entityname="SlatwallOrder" table="SwOrder" persist
 		}
 		return saleQuantity;
 	}
+	
+	/** returns the sum of all deposits required on the order with tax. we can
+ 	 *  tell if a deposit is required because a setting will indicate that they can pay a fraction
+ 	 *  of the whole. Returns the total deposit amount rounded to two decimal places IE. 3.495 becomes 3.50.
+ 	 */
+ 	public numeric function getTotalDepositAmount() {
+ 		var totalDepositAmount = 0;
+ 		for(var i=1; i<=arrayLen(getOrderItems()); i++) {
+ 			if(getOrderItems()[i].getOrderItemType().getSystemCode() eq "oitSale" && !isNull(getOrderItems()[i].getSku().setting("skuMinimumPercentageAmountRecievedRequiredToPlaceOrder"))  && len(getOrderItems()[i].getSku().setting("skuMinimumPercentageAmountRecievedRequiredToPlaceOrder")) != 0) {
+ 				if (getOrderItems()[i].getSku().setting("skuMinimumPercentageAmountRecievedRequiredToPlaceOrder") == 0){
+ 					totalDepositAmount += val(precisionEvaluate("(getOrderItems()[i].getSku().setting('skuMinimumPercentageAmountRecievedRequiredToPlaceOrder')) * getOrderItems()[i].getExtendedPrice()")) ;	
+ 				}else if (getOrderItems()[i].getSku().setting("skuMinimumPercentageAmountRecievedRequiredToPlaceOrder") > 0){
+ 					totalDepositAmount += val(precisionEvaluate("(getOrderItems()[i].getSku().setting('skuMinimumPercentageAmountRecievedRequiredToPlaceOrder')/100) * (getOrderItems()[i].getExtendedPrice() + getOrderItems()[i].getTaxAmount()) ")) ;
+ 				}	
+ 			}
+ 		}
+ 		totalDepositAmount = val(precisionEvaluate("round(totalDepositAmount * 100)/100"));
+ 		return totalDepositAmount;
+ 	}
 
+	public boolean function isAllowedToPlaceOrderWithoutPayment(){
+		for(var i=1; i<=arrayLen(getOrderItems()); i++) {
+			//If the setting is null, or the setting is an empty string, or it has a value and the value is greater then 0...
+			if( 
+				isNull(getOrderItems()[i].getSku().setting("skuMinimumPercentageAmountRecievedRequiredToPlaceOrder")) 
+				|| len(getOrderItems()[i].getSku().setting("skuMinimumPercentageAmountRecievedRequiredToPlaceOrder")) == 0 
+				|| val(getOrderItems()[i].getSku().setting("skuMinimumPercentageAmountRecievedRequiredToPlaceOrder")) > 0
+			){
+				return false;
+			}
+		}
+		return true;
+	}
+
+ 	public boolean function hasDepositItemsOnOrder(){
+ 		for(var i=1; i<=arrayLen(getOrderItems()); i++) {
+ 			if(getOrderItems()[i].getOrderItemType().getSystemCode() eq "oitSale" && !isNull(getOrderItems()[i].getSku().setting("skuMinimumPercentageAmountRecievedRequiredToPlaceOrder")) && len(getOrderItems()[i].getSku().setting("skuMinimumPercentageAmountRecievedRequiredToPlaceOrder")) != 0) {
+ 				
+ 				return true;
+ 			}
+ 		}
+ 		
+ 		return false;
+ 	}
+ 	
+ 	public boolean function hasNonDepositItemsOnOrder(){
+ 		//and has at least one sale item
+ 		for(var i=1; i<=arrayLen(getOrderItems()); i++) {
+ 			if(getOrderItems()[i].getOrderItemType().getSystemCode() eq "oitSale" && isNull(getOrderItems()[i].getSku().setting("skuMinimumPercentageAmountRecievedRequiredToPlaceOrder") || len(getOrderItems()[i].getSku().setting("skuMinimumPercentageAmountRecievedRequiredToPlaceOrder")) == 0)) {
+ 				return true;
+ 			}
+ 		}
+ 		return false;
+ 	}
+ 	
+ 	
+	
 	public numeric function getTotalReturnQuantity() {
 		var returnQuantity = 0;
 		for(var i=1; i<=arrayLen(getOrderItems()); i++) {
@@ -1052,7 +1128,7 @@ component displayname="Order" entityname="SlatwallOrder" table="SwOrder" persist
 	}
 
 	public numeric function getTotal() {
-		return getService('HibachiUtilityService').precisionCalculate(getSubtotal() + getTaxTotal() + getFulfillmentTotal() - getDiscountTotal());
+		return val(getService('HibachiUtilityService').precisionCalculate(getSubtotal() + getTaxTotal() + getFulfillmentTotal() - getDiscountTotal()));
 	}
 
 	public numeric function getTotalItems() {

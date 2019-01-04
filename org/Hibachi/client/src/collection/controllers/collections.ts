@@ -5,7 +5,6 @@ class CollectionController{
 	//@ngInject
 	constructor(
 		$scope,
-		$location,
 		$log,
 		$timeout,
 		$hibachi,
@@ -14,7 +13,8 @@ class CollectionController{
 		selectionService,
 		paginationService,
 		collectionConfigService,
-        appConfig
+        appConfig,
+        observerService
 	){
 		//init values
 		//$scope.collectionTabs =[{tabTitle:'PROPERTIES',isActive:true},{tabTitle:'FILTERS ('+filterCount+')',isActive:false},{tabTitle:'DISPLAY OPTIONS',isActive:false}];
@@ -43,7 +43,18 @@ class CollectionController{
 		    return query_string;
 		} ();
 		//get url param to retrieve collection listing
+
+		//set up defaults
 		$scope.collectionID = QueryString.collectionID;
+		if(!$scope.entityName){
+			$scope.entityName = 'collection';
+		}
+		if($scope.entityID){
+			$scope.collectionID = $scope.entityID;
+		}
+		if(!$scope.propertyName){
+			$scope.propertyName = 'collectionConfig';
+		}
 
 		$scope.paginator = paginationService.createPagination();
 
@@ -54,7 +65,7 @@ class CollectionController{
 					$scope.autoScrollDisabled = true;
 					$scope.autoScrollPage++;
 
-					var collectionListingPromise = $hibachi.getEntity('collection', {id:$scope.collectionID, currentPage:$scope.paginator.autoScrollPage, pageShow:50});
+					var collectionListingPromise = $hibachi.getEntity($scope.entityName, {id:$scope.collectionID, currentPage:$scope.paginator.autoScrollPage, pageShow:50});
 					collectionListingPromise.then(function(value){
 						$scope.collection.pageRecords = $scope.collection.pageRecords.concat(value.pageRecords);
 						$scope.autoScrollDisabled = false;
@@ -80,43 +91,48 @@ class CollectionController{
 				$scope.loadingCollection = true;
 			}, 500);
 		};
+        
+        
 
-		$scope.getCollection = function(){
-			var pageShow = 50;
-			if($scope.paginator.getPageShow() !== 'Auto'){
-				pageShow = $scope.paginator.getPageShow();
-			}
+		$scope.getCollection = function(action){
 //			$scope.currentPage = $scope.pagination.getCurrentPage();
-			var collectionListingPromise = $hibachi.getEntity('collection', {id:$scope.collectionID, currentPage:$scope.paginator.getCurrentPage(), pageShow:pageShow, keywords:$scope.keywords});
-			collectionListingPromise.then(function(value){
-				$scope.collection = value;
-				$scope.paginator.setPageRecordsInfo($scope.collection);
-				$scope.collectionInitial = angular.copy($scope.collection);
-				if(angular.isUndefined($scope.collectionConfig)){
-
-                    var test = collectionConfigService.newCollectionConfig();
-					test.loadJson(value.collectionConfig);
-                    $scope.collectionConfig = test.getCollectionConfig();
-				}
-
-				//check if we have any filter Groups
-				if(angular.isUndefined($scope.collectionConfig.filterGroups)){
-					$scope.collectionConfig.filterGroups = [
-						{
-							filterGroup:[
-
-							]
-						}
-					];
-				}
-				collectionService.setFilterCount(filterItemCounter());
-				$scope.loadingCollection = false;
-			},function(reason){
-			});
-            return collectionListingPromise;
+			if($scope.getCollectionPromise){
+				$timeout.cancel($scope.getCollectionPromise);
+			}
+			$scope.getCollectionPromise = $timeout(function(){
+				var collectionListingPromise = $hibachi.getEntity('collection', {id:$scope.collectionID, currentPage:$scope.paginator.getCurrentPage(), pageShow:$scope.paginator.getPageShow(), keywords:$scope.keywords});
+				collectionListingPromise.then(function(value){
+					$scope.collection = value;
+					$scope.paginator.setPageRecordsInfo($scope.collection);
+					$scope.collectionInitial = angular.copy($scope.collection);
+					if(angular.isUndefined($scope.collectionConfig)){
+	
+	                    var test = collectionConfigService.newCollectionConfig();
+						test.loadJson($scope.propertyName);
+	                    $scope.collectionConfig = test.getCollectionConfig();
+					}
+	
+					//check if we have any filter Groups
+					if(angular.isUndefined($scope.collectionConfig.filterGroups)){
+						$scope.collectionConfig.filterGroups = [
+							{
+								filterGroup:[
+	
+								]
+							}
+						];
+					}
+					collectionService.setFilterCount(filterItemCounter());
+					$scope.loadingCollection = false;
+				},function(reason){
+				});
+			}, 1000);
+			return $scope.getCollectionPromise;
 		};
 		$scope.paginator.getCollection = $scope.getCollection;
 		$scope.getCollection();
+        
+        observerService.attach($scope.getCollection,'swPaginationAction');
 
 		var unbindCollectionObserver = $scope.$watch('collection',function(newValue,oldValue){
 			if(newValue !== oldValue){
@@ -180,11 +196,12 @@ class CollectionController{
 
 
 		$scope.saveCollection = function(){
-			$timeout(function(){
-				$log.debug('saving Collection');
-				var entityName = 'collection';
+			if($scope.saveCollectionPromise){
+				$timeout.cancel($scope.saveCollectionPromise);
+			}
+			$scope.saveCollectionPromise = $timeout(function(){
+				var entityName = $scope.entityName;
 				var collection = $scope.collection;
-				$log.debug($scope.collectionConfig);
 				if(isFormValid($scope.collectionForm)){
                     if(angular.isDefined($scope.collectionConfig)
                         && angular.isDefined($scope.collectionConfig.groupBys)
@@ -222,7 +239,7 @@ class CollectionController{
 				}
 
 				collectionService.setFilterCount(filterItemCounter());
-			});
+			},1000);
 		};
 
 		var isFormValid = function (angularForm){
@@ -279,7 +296,6 @@ class CollectionController{
                 "ids":selectionService.getSelections('collectionSelection'),
                 "keywords":$scope.keywords
                };
-            console.log('exportData',data);
             var target="downloadCollection";
             $('body').append('<form action="'+url+'" method="post" target="'+target+'" id="postToIframe"></form>');
             $.each(data,function(n,v){

@@ -11,6 +11,8 @@
 			<!--- Account --->
 			<cfif rc.edit>
 				<hb:HibachiPropertyDisplay object="#rc.order#" property="account" fieldtype="textautocomplete" autocompletePropertyIdentifiers="adminIcon,fullName,company,emailAddress,phoneNumber,address.simpleRepresentation" edit="true">
+			<cfelseif !isNull(rc.order.getAccount()) && rc.order.getAccount().getOrganizationFlag()>
+ 				<hb:HibachiPropertyDisplay object="#rc.order.getAccount()#" property="company">	
 			<cfelseif !isNull(rc.order.getAccount())>
 				<hb:HibachiPropertyDisplay object="#rc.order.getAccount()#" property="fullName" valuelink="?slatAction=admin:entity.detailaccount&accountID=#rc.order.getAccount().getAccountID()#" title="#$.slatwall.rbKey('entity.account')#">
 				<hb:HibachiPropertyDisplay object="#rc.order.getAccount()#" property="emailAddress" valuelink="mailto:#rc.order.getAccount().getEmailAddress()#">
@@ -22,6 +24,11 @@
 
 			<!--- Order Type --->
 			<hb:HibachiPropertyDisplay object="#rc.order#" property="orderType" edit="#rc.edit#">
+
+			<!--- Short Refenece, Quote Number --->
+			<cfif rc.order.getShortReferenceID(false) neq "">
+				<hb:HibachiFieldDisplay title="#$.slatwall.rbkey('entity.order.quoteNumber')#" value="#rc.order.getShortReferenceID(false)#" edit="false" displayType="dl">
+			</cfif>
 
 			<!--- Default Stock Location --->
 			<hb:HibachiPropertyDisplay object="#rc.order#" property="defaultStockLocation" edit="#rc.edit#">
@@ -69,6 +76,7 @@
 				<hb:HibachiPropertyDisplay object="#rc.order#" property="nextEstimatedFulfillmentDateTime" edit="false" displayType="table" />
 				<hb:HibachiPropertyDisplay object="#rc.order#" property="nextEstimatedDeliveryDateTime" edit="false" displayType="table" />
 				<hb:HibachiPropertyTableBreak header="#$.slatwall.rbKey('admin.entity.detailorder.payments')#" />
+				
 				<hb:HibachiPropertyDisplay object="#rc.order#" property="paymentAmountReceivedTotal" edit="false" displayType="table">
 				<hb:HibachiPropertyDisplay object="#rc.order#" property="paymentAmountCreditedTotal" edit="false" displayType="table">
 				<cfif arrayLen(rc.order.getReferencingOrders())>

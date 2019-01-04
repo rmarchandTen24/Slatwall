@@ -35,6 +35,10 @@ component output="false" accessors="true" persistent="false" extends="HibachiTra
 		return super.init();
 	}
 
+	public string function getTableName(){
+		return getService('hibachiService').getTableNameByEntityName(getClassName());
+	}
+
 	public void function genericPropertyRemove(required string propertyName){
 		evaluate("set#arguments.propertyName#(javacast('null',''))");
 	}
@@ -61,8 +65,19 @@ component output="false" accessors="true" persistent="false" extends="HibachiTra
 
                 // Look for any that start with the calculatedXXX naming convention
                 if(left(property.name, 10) == "calculated" && (!structKeyExists(property, "persistent") || property.persistent == "true")) {
+					//prior to invoking we should remove any first level caching that would cause a stale calculation
+					var nonPersistentProperty = right(property.name, len(property.name)-10);
+					if(listFindNoCase('Product,Sku,Stock',this.getClassName())){
+						var inventoryProperties = listToArray('QOH,QOSH,QNDOO,QNDORVO,QNDOSA,QNRORO,QNROVO,QNROSA,QC,QE,QNC,QATS,QIATS');
+						for(var inventoryProperty in inventoryProperties){
+							if(structKeyExists(variables,inventoryProperty)){
+								structDelete(variables,inventoryProperty);
+							}
+						}
+					}
 
-                    var value = this.invokeMethod("get#right(property.name, len(property.name)-10)#");
+                    var value = this.invokeMethod("get#nonPersistentProperty#");
+
                     if(!isNull(value)) {
                         variables[ property.name ] = value;
                     }
@@ -76,6 +91,11 @@ component output="false" accessors="true" persistent="false" extends="HibachiTra
 
         }
     }
+
+    public string function getParentPropertyName(){
+    	getService('hibachiService').getParentPropertyByEntityName(getClassName());
+    }
+
 	// @hint return a simple representation of this entity
 	public string function getSimpleRepresentation() {
 
@@ -446,6 +466,7 @@ component output="false" accessors="true" persistent="false" extends="HibachiTra
 		return "";
 	}
 
+
 	// @hint returns an array of name/value pairs that can function as options for a many-to-one property
 	public array function getPropertyOptions( required string propertyName ) {
 
@@ -454,30 +475,30 @@ component output="false" accessors="true" persistent="false" extends="HibachiTra
 		if(!structKeyExists(variables, cacheKey)) {
 			variables[ cacheKey ] = [];
 
-			var smartList = getPropertyOptionsSmartList( arguments.propertyName );
+			var collectionList = getPropertyOptionsCollectionList( arguments.propertyName );
 
 			var propertyMeta = getPropertyMetaData( propertyName );
 
 			if(structKeyExists(propertyMeta, "hb_optionsNameProperty")) {
-				smartList.addSelect(propertyIdentifier=propertyMeta.hb_optionsNameProperty, alias="value");
+				collectionList.addDisplayProperty("#propertyMeta.hb_optionsNameProperty#|value");
 			} else {
 				var exampleEntity = entityNew("#getApplicationValue('applicationKey')##listLast(getPropertyMetaData( arguments.propertyName ).cfc,'.')#");
-				smartList.addSelect(propertyIdentifier=exampleEntity.getSimpleRepresentationPropertyName(), alias="name");
+				collectionList.addDisplayProperty("#exampleEntity.getSimpleRepresentationPropertyName()#|name");
 			}
 			if(structKeyExists(propertyMeta, "hb_optionsValueProperty")) {
-				smartList.addSelect(propertyIdentifier=propertyMeta.hb_optionsValueProperty, alias="value");
+				collectionList.addDisplayProperty("#propertyMeta.hb_optionsValueProperty#|value");
 			} else {
-				smartList.addSelect(propertyIdentifier=getService("hibachiService").getPrimaryIDPropertyNameByEntityName(listLast(getPropertyMetaData( arguments.propertyName ).cfc,'.')), alias="value");
+				collectionList.addDisplayProperty("#getService("hibachiService").getPrimaryIDPropertyNameByEntityName(listLast(getPropertyMetaData( arguments.propertyName ).cfc,'.'))#|value");
 			}
 
 			if(structKeyExists(propertyMeta, "hb_optionsAdditionalProperties")) {
 				var additionalPropertiesArray = listToArray(propertyMeta.hb_optionsAdditionalProperties);
 				for(var p=1; p<=arrayLen(additionalPropertiesArray); p++) {
-					smartList.addSelect(propertyIdentifier=additionalPropertiesArray[p], alias=replace(additionalPropertiesArray[p],".","_","all"));
+					collectionList.addDisplayProperty("#additionalPropertiesArray[p]#|#replace(additionalPropertiesArray[p],'.','_','all')#");
 				}
 			}
 
-			variables[ cacheKey ] = smartList.getRecords();
+			variables[ cacheKey ] = collectionList.getRecords();
 
 			// If this is a many-to-one related property, then add a 'select' to the top of the list
 			if(getPropertyMetaData( propertyName ).fieldType == "many-to-one" && structKeyExists(getPropertyMetaData( propertyName ), "hb_optionsNullRBKey")) {
@@ -506,6 +527,33 @@ component output="false" accessors="true" persistent="false" extends="HibachiTra
 			// If there was an hb_optionsSmartListData defined, then we can now apply that data to this smart list
 			if(structKeyExists(propertyMeta, "hb_optionsSmartListData")) {
 				variables[ cacheKey ].applyData( propertyMeta.hb_optionsSmartListData );
+			}
+
+			if( getService("hibachiService").getEntityHasPropertyByEntityName(listLast(propertyMeta.cfc,'.'), 'activeFlag') ) {
+				variables[ cacheKey ].addFilter( 'activeFlag', 1 );
+			}
+		}
+
+		return variables[ cacheKey ];
+	}
+
+
+	// @hint returns a collection list or records that can be used as options for a many-to-one property
+	public any function getPropertyOptionsCollectionList( required string propertyName ) {
+		var cacheKey = "#arguments.propertyName#OptionsCollectionList";
+
+		if(!structKeyExists(variables, cacheKey)) {
+
+			var propertyMeta = getPropertyMetaData( arguments.propertyName );
+			var entityService = getService("hibachiService").getServiceByEntityName( listLast(propertyMeta.cfc,'.') );
+
+			variables[ cacheKey ] = entityService.invokeMethod("get#listLast(propertyMeta.cfc,'.')#CollectionList");
+
+			// If there was an hb_optionsCollectionListData defined, then we can now apply that data to this smart list
+			if(structKeyExists(propertyMeta, "hb_optionsSmartListData")) {
+				variables[ cacheKey ].applyData( propertyMeta.hb_optionsSmartListData );
+			}else if(structKeyExists(propertyMeta, "hb_optionsCollectionListData")) {
+				variables[ cacheKey ].applyData( propertyMeta.hb_optionsCollectionListData );
 			}
 
 			if( getService("hibachiService").getEntityHasPropertyByEntityName(listLast(propertyMeta.cfc,'.'), 'activeFlag') ) {
@@ -551,10 +599,10 @@ component output="false" accessors="true" persistent="false" extends="HibachiTra
 	}
 
 	// @hint returns a collection list of the current values for a given one-to-many or many-to-many property
-	public any function getPropertyCollectionList( required string propertyName ) {
+	public any function getPropertyCollectionList( required string propertyName, boolean isNew=false ) {
 		var cacheKey = "#arguments.propertyName#CollectionList";
 
-		if(!structKeyExists(variables, cacheKey)) {
+		if(!structKeyExists(variables, cacheKey) || ((structKeyExists(arguments, 'isNew') && !isNull(arguments.isNew) && arguments.isNew))) {
 
 			var entityService = getService("hibachiService").getServiceByEntityName( listLast(getPropertyMetaData( arguments.propertyName ).cfc,'.') );
 			var collectionList = entityService.invokeMethod("get#listLast(getPropertyMetaData( arguments.propertyName ).cfc,'.')#CollectionList");
@@ -598,15 +646,26 @@ component output="false" accessors="true" persistent="false" extends="HibachiTra
 
 	// @hint returns the count of a given property
 	public numeric function getPropertyCount( required string propertyName ) {
-		var propertySmartList = this.invokeMethod('get#propertyName#SmartList');
-		return propertySmartList.getRecordsCount();
+		arguments.propertyName = getPropertiesStruct()[arguments.propertyName].name;
+		var propertyCollection = getService("hibachiService").getCollectionList(getClassName());
+		propertyCollection.addFilter(getPrimaryIDPropertyName(),getPrimaryIDValue());
+		propertyCollection.setDisplayProperties(getPrimaryIDPropertyName());
+		var propertyCountName = '#arguments.propertyName#Count';
+		propertyCollection.addDisplayAggregate(arguments.propertyName,'COUNT',propertyCountName);
+		var records = propertyCollection.getRecords();
+		if(arraylen(records)){
+			return records[1][propertyCountName];
+		}else{
+			return 0;
+		}
 	}
 
 	// @hint handles encrypting a property based on conventions
 	public void function encryptProperty(required string propertyName) {
 		var generatorValue = createHibachiUUID();
 		var value = this.invokeMethod('get#arguments.propertyName#');
-		if(!isNull(value)) {
+
+		if(!isNull(value) && len(value) && value != '********') {
 			var encryptedPropertyValue = encryptValue(value, generatorValue);
 
 			// Set encrypted generator
@@ -646,16 +705,26 @@ component output="false" accessors="true" persistent="false" extends="HibachiTra
 	// @hint handles decrypting a property based on conventions
 	public string function decryptProperty(required string propertyName) {
 		var encryptedPropertyValue = "";
-		var generatorValue = this.invokeMethod("get#arguments.propertyName#EncryptedGenerator");
+
+		var isAttributeProperty = getService('hibachiService').getHasAttributeByEntityNameAndPropertyIdentifier(getClassName(),arguments.propertyName);
+
+		var generatorName = "";
+		var entity = this;
+		if(isAttributeProperty){
+			generatorName = "AttributeValue";
+			entity = this.getAttributeValue(arguments.propertyName,true);
+		}else{
+			generatorName = arguments.propertyName;
+		}
+		var generatorValue = entity.invokeMethod("get#generatorName#EncryptedGenerator");;
 		param name="generatorValue" default="";
 
 		// Determine the appropriate property to retrieve the encrytped value from
-		if (this.hasProperty("#arguments.propertyName#Encrypted")) {
-			encryptedPropertyValue = this.invokeMethod("get#arguments.propertyName#Encrypted");
+		if (entity.hasProperty("#generatorName#Encrypted")) {
+			encryptedPropertyValue = entity.invokeMethod("get#generatorName#Encrypted");
 		} else {
 			encryptedPropertyValue = variables['#arguments.propertyName#'];
 		}
-
 		return decryptValue(encryptedPropertyValue, generatorValue);
 	}
 
@@ -716,66 +785,92 @@ component output="false" accessors="true" persistent="false" extends="HibachiTra
 			return hasAnyInProperty(propertyName=right(arguments.missingMethodName, len(arguments.missingMethodName) - 6), entityArray=arguments.missingMethodArguments[1]);
 
 		// getXXXAssignedIDList()		Where XXX is a one-to-many or many-to-many property that we need an array of valid options returned
-		} else if ( left(arguments.missingMethodName, 3) == "get" && right(arguments.missingMethodName, 14) == "AssignedIDList") {
-
-			return getPropertyAssignedIDList( propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-17) );
-
-		// getXXXOptions()		Where XXX is a one-to-many or many-to-many property that we need an array of valid options returned
-		} else if ( left(arguments.missingMethodName, 3) == "get" && right(arguments.missingMethodName, 7) == "Options") {
-
-			return getPropertyOptions( propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-10) );
-
-		// getXXXOptionsSmartList()		Where XXX is a one-to-many or many-to-many property that we need an array of valid options returned
-		} else if ( left(arguments.missingMethodName, 3) == "get" && right(arguments.missingMethodName, 16) == "OptionsSmartList") {
-
-			return getPropertyOptionsSmartList( propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-19) );
-
-		// getXXXSmartList()	Where XXX is a one-to-many or many-to-many property where we to return a smartList instead of just an array
-		} else if ( left(arguments.missingMethodName, 3) == "get" && right(arguments.missingMethodName, 9) == "SmartList") {
-
-			return getPropertySmartList( propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-12) );
-
-		// getXXXStruct()		Where XXX is a one-to-many or many-to-many property where we want a key delimited struct
-		} else if ( left(arguments.missingMethodName, 3) == "get" && right(arguments.missingMethodName, 14) == "CollectionList") {
-
-			return getPropertyCollectionList( propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-17) );
-
-		// getXXXStruct()		Where XXX is a one-to-many or many-to-many property where we want a key delimited struct
-		} else if ( left(arguments.missingMethodName, 3) == "get" && right(arguments.missingMethodName, 6) == "Struct") {
-
-			return getPropertyStruct( propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-9) );
-
-		// getXXXCount()		Where XXX is a one-to-many or many-to-many property where we want to get the count of that property
-		} else if ( left(arguments.missingMethodName, 3) == "get" && right(arguments.missingMethodName, 5) == "Count") {
-
-			return getPropertyCount( propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-8) );
-
-		// getXXX() 			Where XXX is either and attributeID or attributeCode
-		} else if (left(arguments.missingMethodName, 3) == "get" && structKeyExists(variables, "getAttributeValue") && hasProperty("attributeValues") && hasAttributeCode(right(arguments.missingMethodName, len(arguments.missingMethodName)-3)) ) {
-
-			return getAttributeValue(right(arguments.missingMethodName, len(arguments.missingMethodName)-3));
-
 		}
-		// getXXXID()		Where XXX is a many-to-one property that we want to get the primaryIDValue of that property
-		 else if ( left(arguments.missingMethodName, 3) == "get" && right(arguments.missingMethodName, 2) == "ID") {
 
-			return getPropertyPrimaryID( propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-5) );
-		//getXXXUploadDirectory()
-		} else if ( left(arguments.missingMethodName, 3) == "get" && right(arguments.missingMethodName, 15) == "UploadDirectory") {
-			var propertyName = mid(arguments.missingMethodName,4,len(arguments.missingMethodName)-18);
-
-			if(getPropertyFieldType(propertyName) == 'file'){
-				return getUploadDirectoryByPropertyName(propertyName);
+		if ( left(arguments.missingMethodName, 3) == "get"){
+			var propertyName="";
+			if(right(arguments.missingMethodName, 14) == "AssignedIDList") {
+				propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-17);
+				if(hasProperty(propertyName)){
+					return getPropertyAssignedIDList( propertyName=propertyName );
+				}
 			}
-		//getXXXFileURL()
-		} else if ( left(arguments.missingMethodName, 3) == "get" && right(arguments.missingMethodName, 7) == "FileUrl") {
-			var propertyName = mid(arguments.missingMethodName,4,len(arguments.missingMethodName)-10);
-
-			if(getPropertyFieldType(propertyName) == 'file'){
-				return getFileUrlByPropertyName(propertyName);
+			// getXXXOptions()		Where XXX is a one-to-many or many-to-many property that we need an array of valid options returned
+			if ( right(arguments.missingMethodName, 7) == "Options") {
+				propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-10);
+				if(hasProperty(propertyName)){
+					return getPropertyOptions( propertyName=propertyName);
+				}
 			}
+			// getXXXOptionsSmartList()		Where XXX is a one-to-many or many-to-many property that we need an array of valid options returned
+			if ( right(arguments.missingMethodName, 16) == "OptionsSmartList") {
+				propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-19);
+				if(hasProperty(propertyName)){
+					return getPropertyOptionsSmartList( propertyName=propertyName );
+				}
+			}
+			// getXXXSmartList()	Where XXX is a one-to-many or many-to-many property where we to return a smartList instead of just an array
+			if ( right(arguments.missingMethodName, 9) == "SmartList") {
+				propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-12);
+				if(hasProperty(propertyName)){
+					return getPropertySmartList( propertyName=propertyName );
+				}
+			}
+			// getXXXStruct()		Where XXX is a one-to-many or many-to-many property where we want a key delimited struct
+			if ( right(arguments.missingMethodName, 14) == "CollectionList") {
+				propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-17);
+				if(hasProperty(propertyName)){
+					//condition to choose between new and cached collectionList
+					if( structKeyExists(arguments.missingMethodArguments, 'isNew') && arguments.missingMethodArguments["isNew"]){
+						return getPropertyCollectionList( propertyName=propertyName, isNew=true);
+					}else{
+					return getPropertyCollectionList( propertyName=propertyName );
+					}
+				}
+			}
+			// getXXXStruct()		Where XXX is a one-to-many or many-to-many property where we want a key delimited struct
+			if ( right(arguments.missingMethodName, 6) == "Struct") {
+				propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-9);
+				if(hasProperty(propertyName)){
+					return getPropertyStruct( propertyName=propertyName );
+				}
+			}
+			// getXXXCount()		Where XXX is a one-to-many or many-to-many property where we want to get the count of that property
+			if ( right(arguments.missingMethodName, 5) == "Count") {
+				propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-8);
+				if(hasProperty(propertyName)){
+					return getPropertyCount( propertyName=propertyName );
+				}
+			}
+			// getXXX() 			Where XXX is either and attributeID or attributeCode
+			if (structKeyExists(variables, "getAttributeValue") && hasProperty("attributeValues") && hasAttributeCode(right(arguments.missingMethodName, len(arguments.missingMethodName)-3)) ) {
+				return getAttributeValue(right(arguments.missingMethodName, len(arguments.missingMethodName)-3));
+			}
+			// getXXXID()		Where XXX is a many-to-one property that we want to get the primaryIDValue of that property
+			if ( right(arguments.missingMethodName, 2) == "ID") {
+				propertyName=left(right(arguments.missingMethodName, len(arguments.missingMethodName)-3), len(arguments.missingMethodName)-5);
+				if(hasProperty(propertyName)){
+					return getPropertyPrimaryID( propertyName=propertyName );
+				}
+			}
+			//getXXXUploadDirectory()
+			if ( right(arguments.missingMethodName, 15) == "UploadDirectory") {
+				var propertyName = mid(arguments.missingMethodName,4,len(arguments.missingMethodName)-18);
+				if(getPropertyFieldType(propertyName) == 'file'){
+					return getUploadDirectoryByPropertyName(propertyName);
+				}
+			}
+			//getXXXFileURL()
+			if ( right(arguments.missingMethodName, 7) == "FileUrl") {
+				var propertyName = mid(arguments.missingMethodName,4,len(arguments.missingMethodName)-10);
+
+				if(getPropertyFieldType(propertyName) == 'file'){
+					return getFileUrlByPropertyName(propertyName);
+				}
+			}
+		}
 		//removeXXX() only for files
-		} else if ( left(arguments.missingMethodName, 6) == "remove") {
+		if ( left(arguments.missingMethodName, 6) == "remove") {
 			var propertyName =right(arguments.missingMethodName,len(arguments.missingMethodName)-6);
 			if(getPropertyFieldType(propertyName) == 'file'){
 				return genericPropertyRemove(propertyName);
@@ -962,17 +1057,52 @@ component output="false" accessors="true" persistent="false" extends="HibachiTra
 		var properties = getProperties();
 
 		var defaultProperties = [];
-		for(var p=1; p<=arrayLen(properties); p++) {
-			if(len(arguments.excludesList) && ListFind(arguments.excludesList,properties[p].name)){
 
-			}else{
-				if((len(arguments.includesList) && ListFind(arguments.includesList,properties[p].name)) ||
-				!structKeyExists(properties[p],'FKColumn') && (!structKeyExists(properties[p], "persistent") ||
-				properties[p].persistent)){
-					arrayAppend(defaultProperties,properties[p]);
+		//Check if there is any include column
+		if(len(arguments.includesList)){
+			var includesArray = ListToArray(arguments.includesList);
+			for(var i = 1; i <= arraylen(includesArray); i++) {
+				//Loop through IncludeList looking for relational
+				includesArray[i] = trim(includesArray[i]);
+				if(Find('.', includesArray[i]) != 0){
+					var parts = listToArray(includesArray[i], '.');
+
+					var current_object = this.getClassName();
+					var current_properties = getService('hibachiService').getPropertiesStructByEntityName(this.getClassName());
+					for(var p = 1; p <= arraylen(parts); p++ ){
+						if(structKeyExists(current_properties, parts[p]) && structKeyExists(current_properties[parts[p]], 'cfc')){
+							current_object = current_properties[parts[p]]['cfc'];
+							current_properties = getService('hibachiService').getPropertiesStructByEntityName(current_properties[parts[p]]['cfc']);
+						}else{
+							var newProperty = {};
+							structAppend(newProperty,current_properties[parts[p]]);
+							newProperty["name"] = includesArray[i];
+							newProperty["title"] = rbKey('entity.#current_object#.#listLast(includesArray[i],'.')#');
+							//append the Column struct with relational name.
+							arrayAppend(defaultProperties, newProperty);
+
+						}
+					}
+
+				}else{
+					//If its not relational, just use the current entity struct
+					for(var x = 1; x <= arraylen(properties); x++){
+						if(properties[x].name == includesArray[i]){
+							arrayAppend(defaultProperties, properties[x]);
+						}
+					}
+				}
+			}
+		}else{
+			//Remove all non Persistent, Relational and Excluded columns
+			for(var x = 1; x <= arraylen(properties); x++){
+				if(!ListContains(excludesList, properties[x].name) && !structKeyExists(properties[x],'FKColumn') &&
+				(!structKeyExists(properties[x], "persistent") || properties[x].persistent)){
+					arrayAppend(defaultProperties, properties[x]);
 				}
 			}
 		}
+
 		return defaultProperties;
 	}
 

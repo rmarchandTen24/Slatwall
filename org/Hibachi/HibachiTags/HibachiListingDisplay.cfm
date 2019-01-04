@@ -1,4 +1,3 @@
-<cfimport prefix="swa" taglib="../../../tags" />
 <cfimport prefix="hb" taglib="../../../org/Hibachi/HibachiTags" />
 <cfif thisTag.executionMode is "start">
 	<!--- Implicit --->
@@ -7,6 +6,8 @@
 	<!--- Required --->
 	<cfparam name="attributes.smartList" type="any" />
 	<cfparam name="attributes.edit" type="boolean" default="#request.context.edit#" />
+	<cfparam name="attributes.expandable" type="boolean" default="true" /> <!--- Although this defaults to true, the listing will only be expandable if hb_parentProperty is specified at the entity level--->
+
 
 	<!--- Optional --->
 	<cfparam name="attributes.title" type="string" default="" />
@@ -54,6 +55,7 @@
 	<cfparam name="attributes.tableattributes" type="string" default="" />  <!--- Pass in additional html attributes for the table --->
 	<cfparam name="attributes.tableclass" type="string" default="" />  <!--- Pass in additional classes for the table --->
 	<cfparam name="attributes.adminattributes" type="string" default="" />
+	<cfparam name="attributes.recordAlias" type="string" default="" /> <!--- Optional record alias for process object injection --->
 
 	<!--- Settings --->
 	<cfparam name="attributes.showheader" type="boolean" default="true" /> <!--- Setting to false will hide the table header with search and filters --->
@@ -123,7 +125,7 @@
 		</cfif>
 
 		<!--- Setup Hierarchy Expandable --->
-		<cfif len(attributes.parentPropertyName) && attributes.parentPropertyName neq 'false'>
+		<cfif len(attributes.parentPropertyName) && attributes.parentPropertyName neq 'false' && (isNull(attributes.expandable) || attributes.expandable)>
 			<cfset thistag.expandable = true />
 
 			<cfset attributes.tableclass = listAppend(attributes.tableclass, 'table-expandable', ' ') />
@@ -243,17 +245,17 @@
 					<cfset thisPropertyMeta = attributes.hibachiScope.getService("hibachiService").getPropertyByEntityNameAndPropertyName( thisEntityName, thisPropertyName ) />
 
 					<!--- Setup automatic search, sort, filter & range --->
-					<cfif not len(column.search) && (!structKeyExists(thisPropertyMeta, "persistent") || thisPropertyMeta.persistent) && (!structKeyExists(thisPropertyMeta, "ormType") || thisPropertyMeta.ormType eq 'string')>
+					<cfif !isNull(thisPropertyMeta) && not len(column.search) && (!structKeyExists(thisPropertyMeta, "persistent") || thisPropertyMeta.persistent) && (!structKeyExists(thisPropertyMeta, "ormType") || thisPropertyMeta.ormType eq 'string')>
 						<cfset column.search = true />
 					<cfelseif !isBoolean(column.search)>
 						<cfset column.search = false />
 					</cfif>
-					<cfif not len(column.sort) && (!structKeyExists(thisPropertyMeta, "persistent") || thisPropertyMeta.persistent)>
+					<cfif !isNull(thisPropertyMeta) && not len(column.sort) && (!structKeyExists(thisPropertyMeta, "persistent") || thisPropertyMeta.persistent)>
 						<cfset column.sort = true />
 					<cfelseif !isBoolean(column.sort)>
 						<cfset column.sort = false />
 					</cfif>
-					<cfif not len(column.filter) && (!structKeyExists(thisPropertyMeta, "persistent") || thisPropertyMeta.persistent)>
+					<cfif !isNull(thisPropertyMeta) && not len(column.filter) && (!structKeyExists(thisPropertyMeta, "persistent") || thisPropertyMeta.persistent)>
 						<cfset column.filter = false />
 
 						<cfif structKeyExists(thisPropertyMeta, "ormtype") && thisPropertyMeta.ormtype eq 'boolean'>
@@ -275,7 +277,7 @@
 					<cfelseif !isBoolean(column.filter)>
 						<cfset column.filter = false />
 					</cfif>
-					<cfif not len(column.range) && (!structKeyExists(thisPropertyMeta, "persistent") || thisPropertyMeta.persistent) && structKeyExists(thisPropertyMeta, "ormType") && (thisPropertyMeta.ormType eq 'integer' || thisPropertyMeta.ormType eq 'big_decimal' || thisPropertyMeta.ormType eq 'timestamp')>
+					<cfif !isNull(thisPropertyMeta) && not len(column.range) && (!structKeyExists(thisPropertyMeta, "persistent") || thisPropertyMeta.persistent) && structKeyExists(thisPropertyMeta, "ormType") && (thisPropertyMeta.ormType eq 'integer' || thisPropertyMeta.ormType eq 'big_decimal' || thisPropertyMeta.ormType eq 'timestamp')>
 						<cfset column.range = true />
 					<cfelseif !isBoolean(column.range)>
 						<cfset column.range = false />
@@ -425,7 +427,7 @@
 									#column.title#
 								<cfelse>
 									<div class="dropdown">
-										<a href="##" class="dropdown-toggle">#column.title# <i class="fa fa-sort"></i></a>
+										<a href="##" class="dropdown-toggle" data-toggle="dropdown">#column.title# <i class="fa fa-sort"></i></a>
 										<ul class="dropdown-menu nav scrollable">
 											<hb:HibachiDividerHider>
 												<cfif column.sort and not thistag.expandable>
@@ -486,8 +488,13 @@
 						<!--- If there is a recordProcessEntity then find the processObject and inject the necessary values --->
 						<cfif isObject(attributes.recordProcessEntity)>
 							<cfset injectValues = structNew() />
+							<cfif len(attributes.recordAlias)>
+								<cfset injectValues[ "#attributes.recordAlias#" ] = record />
+								<cfset injectValues[ "#attributes.recordAlias#ID" ] = record.getPrimaryIDValue() />
+							<cfelse>
 							<cfset injectValues[ "#record.getClassName()#" ] = record />
 							<cfset injectValues[ "#record.getPrimaryIDPropertyName()#" ] = record.getPrimaryIDValue() />
+							</cfif>
 							<cfset attributes.recordProcessEntity.clearProcessObject( attributes.recordProcessContext ) />
 							<cfset thisRecordProcessObject = attributes.recordProcessEntity.getProcessObject( attributes.recordProcessContext, injectValues ) />
 						</cfif>
@@ -519,7 +526,7 @@
 									<td class="#column.tdclass#">
 										<cfif len(column.propertyIdentifier)>
 											<cfif record.getFieldTypeByPropertyIdentifier(column.propertyIdentifier) eq 'wysiwyg'>
-												#record.getValueByPropertyIdentifier( propertyIdentifier=column.propertyIdentifier, formatValue=true )#
+											#record.getValueByPropertyIdentifier( propertyIdentifier=column.propertyIdentifier, formatValue=true )#
 											<cfelse>
 												#attributes.hibachiScope.hibachiHTMLEditFormat(record.getValueByPropertyIdentifier( propertyIdentifier=column.propertyIdentifier, formatValue=true ))#
 											</cfif>
@@ -591,8 +598,12 @@
 											<cfset processActionProperty=listlast(attributes.recordProcessActionProperty,'.')>
 											<cfset processActionPropertyValue=record.getValueByPropertyIdentifier( propertyIdentifier=attributes.recordProcessActionProperty)>
 										<cfelse>
-											<cfset processActionProperty=record.getPrimaryIDPropertyName()>
-											<cfset processActionPropertyValue=record.getPrimaryIDValue()>
+											<cfif len(attributes.recordAlias)>
+												<cfset processActionProperty=attributes.recordAlias & 'ID' />
+											<cfelse>
+												<cfset processActionProperty=record.getPrimaryIDPropertyName() />
+											</cfif>
+											<cfset processActionPropertyValue=record.getPrimaryIDValue() />
 										</cfif>
 										<cfset thisID = "#replace(replace(lcase(attributes.recordProcessAction), ':', ''), '.', '')#_#record.getPrimaryIDValue()#" />
 										<hb:HibachiProcessCaller action="#attributes.recordProcessAction#" entity="#attributes.recordProcessEntity#" processContext="#attributes.recordProcessContext#" queryString="#listPrepend(attributes.recordProcessQueryString, '#processActionProperty#=#processActionPropertyValue#', '&')#" class="btn btn-default hibachi-ajax-submit" id="#thisID#" />
