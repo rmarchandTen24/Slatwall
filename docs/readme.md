@@ -7,7 +7,6 @@ ColdFusion (CFML) Standards & Best Practices
   1. [Naming & Conventions](#naming-conventions)
   1. [Abbreviations](#abbreviations)
   1. [Acronyms](#acronyms)
-  1. [Package Names](#package-names)
   1. [Class/Component/Interface Names](#object-names)
   1. [Methods](#methods)
   1. [Types](#types)
@@ -96,30 +95,6 @@ XmlHttpRequest.cfc
 
 * [CFC Tips](http://cfdj.sys-con.com/read/41660.htm)
 * [Java Coding Standards](http://www.oracle.com/technetwork/java/javase/documentation/codeconvtoc-136057.html)
-
-
-**[[⬆]](#TOC)**
-
-
-  
-### <a name="package-names">Package Names</a>
-
-Package names should be unique and in lowercase letters. Underscores may be used or hyphens if necessary. You can package your objects/files using two well known approaches:
-
-1.  By Functionality (Best Practice)
-2.  By object types
-
-The best practice is to use packaging by functionality if at all possible. This creates better packaging layout and maintenability. Here is an example from an application's model or business layer folder:
-
-```
-- model
-  - security
-  - remote-api
-  - products
-  - users
-  - conversions
-  - util
-```
 
 
 **[[⬆]](#TOC)**
