@@ -33,31 +33,19 @@
     1. [CFC Default Arguments](#cfc-default-arguments)
     1. [CFC Inheritance vs Composition](#cfc-inheritance)
   1. [General Best Practices](#general)
-  1. [ColdBox Best Practices](#coldbox)
+  1. [Slatwall Best Practices](#coldbox)
 
 
 ## <a name="introduction">Introduction</a>
 
-This document is intended to be a concise summary of best practices for anyone building CFML applications within the Ortus team. Several external resources used when creating this document. Please note that this is a guideline based on past development experience and industry standards. Please use common sense when applying them and note that this document is ever changing as development trends continue to change.
+This document is intended to be a concise summary of best practices for anyone building CFML applications within the Slatwall team. Several external resources used when creating this document. Please note that this is a guideline based on past development experience and industry standards. Please use common sense when applying them and note that this document is ever changing as development trends continue to change.
 
 **[[⬆]](#TOC)**
 
 
 ## <a name="idetools">IDE Tools</a>
 
-We have created several IDE formatter tools and some Sublime packages we use:
-
-* [CFBuilder Formatter](https://drive.google.com/open?id=0B3aRjVTf2SeqNmFBZmZJVjR5TUU)
-* [CFBuilder Preferences](https://drive.google.com/open?id=0B3aRjVTf2Seqb2pQMnVIQ0NSLTA)
-* [CFBuilder/Eclipse Java Cleanup](https://drive.google.com/open?id=0B3aRjVTf2SeqSUZDbW5UUjVwOU0)
-* [CFBuilder/Eclipse Java Formatter](https://drive.google.com/open?id=0B3aRjVTf2SeqSndHZEppUmdQLUU)
-* [CFBuilder/Eclipse JavaScript Formatter](https://drive.google.com/open?id=0B3aRjVTf2SeqRlctSDhtZDRoRmM)
-* [Sublime Alignment](https://www.granneman.com/webdev/editors/sublime-text/packages/how-to-install-and-use-sublime-alignment/)
-* [Sublime Emmet](https://packagecontrol.io/packages/Emmet)
-* [Sublime Bracket Highlighter](https://packagecontrol.io/packages/BracketHighlighter)
-* [Sublime DockBlockr](https://packagecontrol.io/packages/DocBlockr)
-* [Sublime Markdown](https://packagecontrol.io/packages/Markdown%20Preview)
-* [Sublime ColdBox Platform](https://packagecontrol.io/packages/ColdBox%20Platform)
+See Cloud 9 docs
 
 **[[⬆]](#TOC)**
 
@@ -457,10 +445,10 @@ Prefer the `new` declaration over the `createObject` declaration to improve read
 
 ``` js
 // do this
-obj = new coldbox.system.testing.TestBox();
+obj = new Slatwall.Application();
 
 // dont this
-obj = createObject( "component", "coldbox.system.testing.testBox" ).init();
+obj = createObject( "component", "Slatwall.Application" ).init();
 ```
 
 
@@ -497,7 +485,7 @@ Yes, you will need to document **ALL** of your code, from classes to property de
 * @author Luis Majano
 * My component documentation
 * goes here in multiple lines if needed
-* You can add <a href='http://www.coldbox.org'>links</a> and valid HTML if needed
+* You can add <a href='http://www.docsite.org'>links</a> and valid HTML if needed
 */
 component accessors="true"{
   
@@ -760,7 +748,7 @@ There will be cases where you need to do a double tests in order to avoid race c
 <cfif not structKeyExists(application,"controller")>
    <cflock name="mainControllerCreation" timeout="20" throwOnTimeout="true" type="exclusive">
       <cfif not structKeyExists(application,"controller")>
-         <cfset application.controller = createObject("component","coldbox.MainController").init()>
+         <cfset application.controller = createObject("component","Slatwall.MainController").init()>
       </cfif>
    </cflock>
 </cfif>
@@ -768,7 +756,7 @@ There will be cases where you need to do a double tests in order to avoid race c
 -- NOT THIS --
 <cfif not structKeyExists(application,"controller")>
    <cflock name="mainControllerCreation" timeout="20" throwOnTimeout="true" type="exclusive">
-      <cfset application.controller = createObject("component","coldbox.MainController").init()>
+      <cfset application.controller = createObject("component","Slatwall.MainController").init()>
    </cflock>
 </cfif>
 ```
@@ -872,7 +860,7 @@ if( isDefined("arguments.car") )
 
 **[[⬆]](#TOC)**
 
-## <a name="coldbox">ColdBox Specific Best Practices</a>
+## <a name="slatwall">Slatwall Specific Best Practices</a>
 
 * Leverage the `rc and prc` scopes directly instead of referencing the `event` object unless you need default values
 * Leverage `var` or `local` scope in the event handlers if those variables will NOT be used in layouts/views
