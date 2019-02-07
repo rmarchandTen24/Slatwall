@@ -54,7 +54,7 @@ Notes:
 		<cfreturn this />
 	</cffunction>
 	
-	<cffunction name="getPaymentMethodTyoes" returntype="string">
+	<cffunction name="getPaymentMethodTypes" returntype="string">
 		<cfreturn "creditCard" />
 	</cffunction>
 	
@@ -67,25 +67,27 @@ Notes:
 		
 		<cfset var q_auth = queryNew('empty') />
 		
+		<cfset var testingFlag = getTestModeFlag(arguments.requestBean)/>
+		
 		<cfswitch expression="#arguments.requestBean.getTransactionType()#" >
 			<cfcase value="authorize">
 				<cfmodule template="usaepay.cfm"
 					queryname="q_auth"
 					key="#setting('key')#"
 					pin="#setting('pin')#"
-					sandbox="#setting('testingFlag')#"
+					sandbox="#testingFlag#"
 					command="authonly"
 					card="#arguments.requestBean.getCreditCardNumber()#"
 					expdate="#left(arguments.requestBean.getExpirationMonth(),2)##left(arguments.requestBean.getExpirationYear(),2)#"
 					amount="#arguments.requestBean.getTransactionAmount()#"
 					invoice="#arguments.requestBean.getOrderID()#"
 					CVV="#arguments.requestBean.getSecurityCode()#"
-					email="#argumetns.requestBean.getAccountPrimaryEmailAddress()#"
+					email="#arguments.requestBean.getAccountPrimaryEmailAddress()#"
 					emailcustomer="false"
-					custname="#arguments.requestBean.getAccountFirstName()# #argumetns.requestBean.getAccountLastName()#"						  
+					custname="#arguments.requestBean.getAccountFirstName()# #arguments.requestBean.getAccountLastName()#"						  
 					avsstreet="#arguments.requestBean.getBillingStreetAddress()#"
 					avszip="#arguments.requestBean.getBillingPostalCode()#"
-					clientip="#cgi.REMOTE_ADDR#"
+					clientip="#getRemoteAddress()#"
 				>
 			</cfcase>
 			<cfcase value="authorizeAndCharge">
@@ -93,19 +95,19 @@ Notes:
 					queryname="q_auth"
 					key="#setting('key')#"
 					pin="#setting('pin')#"
-					sandbox="#setting('testingFlag')#"
+					sandbox="#testingFlag#"
 					command="sale"
 					card="#arguments.requestBean.getCreditCardNumber()#"
 					expdate="#left(arguments.requestBean.getExpirationMonth(),2)##left(arguments.requestBean.getExpirationYear(),2)#"
 					amount="#arguments.requestBean.getTransactionAmount()#"
 					invoice="#arguments.requestBean.getOrderID()#"
 					CVV="#arguments.requestBean.getSecurityCode()#"
-					email="#argumetns.requestBean.getAccountPrimaryEmailAddress()#"
+					email="#arguments.requestBean.getAccountPrimaryEmailAddress()#"
 					emailcustomer="false"
-					custname="#arguments.requestBean.getAccountFirstName()# #argumetns.requestBean.getAccountLastName()#"						  
+					custname="#arguments.requestBean.getAccountFirstName()# #arguments.requestBean.getAccountLastName()#"						  
 					avsstreet="#arguments.requestBean.getBillingStreetAddress()#"
 					avszip="#arguments.requestBean.getBillingPostalCode()#"
-					clientip="#cgi.REMOTE_ADDR#"
+					clientip="#getRemoteAddress()#"
 				>
 			</cfcase>
 			<cfcase value="chargePreAuthorization">
@@ -114,12 +116,12 @@ Notes:
 					queryname="q_auth"
 					key="#setting('key')#"
 					pin="#setting('pin')#"
-					sandbox="#setting('testingFlag')#"
+					sandbox="#testingFlag#"
 					command="capture"
 					refnum="#arguments.requestBean.getPreAuthorizationProviderTransactionID()#"
 					amount="#arguments.requestBean.getTransactionAmount()#"
 					authcode=""
-					clientip="#cgi.REMOTE_ADDR#"
+					clientip="#getRemoteAddress()#"
 				>
 			</cfcase>
 			<cfcase value="credit">
@@ -127,13 +129,13 @@ Notes:
 					queryname="q_auth"
 					key="#setting('key')#"
 					pin="#setting('pin')#"
-					sandbox="#setting('testingFlag')#"
+					sandbox="#testingFlag#"
 					command="refund"
 					invoice="#arguments.requestBean.getOrderID()#"
 					refnum="#arguments.requestBean.getOriginalChargeProviderTransactionID()#"
 					amount="#arguments.requestBean.getTransactionAmount()#"
-					custname="#arguments.requestBean.getAccountFirstName()# #argumetns.requestBean.getAccountLastName()#"						  
-					clientip="#cgi.REMOTE_ADDR#"
+					custname="#arguments.requestBean.getAccountFirstName()# #arguments.requestBean.getAccountLastName()#"						  
+					clientip="#getRemoteAddress()#"
 				>
 			</cfcase>
 			<cfcase value="void">
@@ -141,13 +143,13 @@ Notes:
 					queryname="q_auth"
 					key="#setting('key')#"
 					pin="#setting('pin')#"
-					sandbox="#setting('testingFlag')#"
+					sandbox="#testingFlag#"
 					command="void"
 					invoice="#arguments.requestBean.getOrderID()#"
 					refnum="#arguments.requestBean.getOriginalProviderTransactionID()#"
 					amount="#arguments.requestBean.getTransactionAmount()#"
-					custname="#arguments.requestBean.getAccountFirstName()# #argumetns.requestBean.getAccountLastName()#"						  
-					clientip="#cgi.REMOTE_ADDR#"
+					custname="#arguments.requestBean.getAccountFirstName()# #arguments.requestBean.getAccountLastName()#"						  
+					clientip="#getRemoteAddress()#"
 				>
 			</cfcase>
 		</cfswitch>
@@ -159,7 +161,7 @@ Notes:
 		<cfset responseBean.setTransactionID(q_auth.UMrefNum) />
 		<cfset responseBean.setAuthorizationCode(q_auth.UMauthCode) />
 		<cfset responseBean.setStatusCode(q_auth.UMstatus) />
-		<cfset responseBean.addMessage(messageCode=q_auth.UMstatus, message=q_auth.UMresult) />
+		<cfset responseBean.addMessage(messageName=q_auth.UMstatus, message=q_auth.UMresult) />
 		
 		<cfif q_auth.UMstatus neq "Approved">
 			<cfset responseBean.addError(q_auth.UMstatus, q_auth.UMresult) />

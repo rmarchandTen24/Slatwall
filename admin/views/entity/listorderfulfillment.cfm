@@ -46,18 +46,7 @@
 Notes:
 
 --->
-<cfparam name="rc.orderFulfillmentSmartList" type="any" />
 
-<cfsilent>
-	<cfset rc.orderFulfillmentSmartList.addInFilter('order.orderStatusType.systemCode', 'ostNew,ostProcessing,ostOnHold,ostClosed,ostCanceled') />
-	<cfset rc.orderFulfillmentSmartList.addOrder('order.orderOpenDateTime|desc') />
-</cfsilent>
+<!--- Order Fulfillment List --->
+<sw-order-fulfillment-list></sw-order-fulfillment-list>
 
-<cf_HibachiListingDisplay smartList="#rc.orderFulfillmentSmartList#"
-		recorddetailaction="admin:entity.detailorderfulfillment"
-		recordeditaction="admin:entity.editorderfulfillment">
-	<cf_HibachiListingColumn tdclass="primary" propertyIdentifier="order.account.fullName" />
-	<cf_HibachiListingColumn propertyIdentifier="fulfillmentMethod.fulfillmentMethodType" />
-	<cf_HibachiListingColumn propertyIdentifier="order.orderNumber" />
-	<cf_HibachiListingColumn propertyIdentifier="order.orderOpenDateTime" />
-</cf_HibachiListingDisplay>

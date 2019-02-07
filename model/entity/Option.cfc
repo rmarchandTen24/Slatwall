@@ -54,6 +54,7 @@ component displayname="Option" entityname="SlatwallOption" table="SwOption" pers
 	property name="optionName" ormtype="string";
 	property name="optionDescription" ormtype="string" length="4000" hb_formFieldType="wysiwyg";
 	property name="sortOrder" ormtype="integer" sortContext="optionGroup";
+	property name="activeFlag" ormtype="boolean";
 	
 	// Related Object Properties (many-to-one)
 	property name="optionGroup" cfc="OptionGroup" fieldtype="many-to-one" fkcolumn="optionGroupID";
@@ -61,6 +62,7 @@ component displayname="Option" entityname="SlatwallOption" table="SwOption" pers
 	
 	// Related Object Properties (one-to-many)
 	property name="images" singularname="image" cfc="Image" type="array" fieldtype="one-to-many" fkcolumn="optionID" cascade="all-delete-orphan" inverse="true";
+	property name="attributeValues" singularname="attributeValue" cfc="AttributeValue" fieldtype="one-to-many" fkcolumn="optionID" inverse="true" cascade="all-delete-orphan";
 	
 	// Related Object Properties (many-to-many - inverse)
 	property name="skus" singularname="sku" cfc="Sku" fieldtype="many-to-many" linktable="SwSkuOption" fkcolumn="optionID" inversejoincolumn="skuID" inverse="true"; 
@@ -89,6 +91,14 @@ component displayname="Option" entityname="SlatwallOption" table="SwOption" pers
 	
 	// ============= START: Bidirectional Helper Methods ===================
 	
+	// Attribute Values (one-to-many)
+	public void function addAttributeValue(required any attributeValue) {
+		arguments.attributeValue.setOption( this );
+	}
+	public void function removeAttributeValue(required any attributeValue) {
+		arguments.attributeValue.removeOption( this );
+	}
+
 	// Option Group (many-to-one)
 	public void function setOptionGroup(required any optionGroup) {
 		variables.optionGroup = arguments.optionGroup;

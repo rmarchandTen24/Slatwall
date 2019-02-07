@@ -46,24 +46,52 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../tags" />
+<cfimport prefix="hb" taglib="../../../org/Hibachi/HibachiTags" />
+
+
 <cfparam name="rc.image" type="any">
-<cfparam name="objectName" type="string" />
+<cfparam name="rc.objectName" type="string" />
 <cfparam name="rc.edit" type="boolean">
 
 <cfoutput>
-	<cf_HibachiEntityDetailForm object="#rc.image#" edit="#rc.edit#" enctype="multipart/form-data" saveActionQueryString="#objectName#ID=#rc[ '#objectName#ID' ]#">
-		<cf_HibachiEntityActionBar type="detail" object="#rc.image#" edit="#rc.edit#" />
+	<hb:HibachiEntityDetailForm object="#rc.image#" edit="#rc.edit#" enctype="multipart/form-data" saveActionQueryString="#rc.objectName#ID=#rc[ '#rc.objectName#ID' ]#">
+		<hb:HibachiEntityActionBar type="detail" object="#rc.image#" edit="#rc.edit#" />
 		
-		<input type="hidden" name="#objectName#.#objectName#ID" value="#rc[ '#objectName#ID' ]#" />
-		<input type="hidden" name="directory" value="#lcase(objectName)#" />
+		<input type="hidden" name="#rc.objectName#.#rc.objectName#ID" value="#rc[ '#rc.objectName#ID' ]#" />
+		<input type="hidden" name="directory" value="#lcase(rc.objectName)#" />
 		
-		<cf_HibachiPropertyRow>
-			<cf_HibachiPropertyList>
-				<cf_HibachiPropertyDisplay object="#rc.image#" property="imageFile" edit="#rc.edit#">
-				<cf_HibachiPropertyDisplay object="#rc.image#" property="imageName" edit="#rc.edit#">
-				<cf_HibachiPropertyDisplay object="#rc.image#" property="imageType" edit="#rc.edit#">
-			</cf_HibachiPropertyList>
-		</cf_HibachiPropertyRow>
+		<hb:HibachiPropertyRow>
+			<hb:HibachiPropertyList>
+				<hb:HibachiPropertyDisplay object="#rc.image#" property="imageFile" edit="#rc.edit#">
+				<hb:HibachiPropertyDisplay object="#rc.image#" property="imageName" edit="#rc.edit#">
+				<hb:HibachiPropertyDisplay object="#rc.image#" property="imageType" edit="#rc.edit#">
+			</hb:HibachiPropertyList>
+		</hb:HibachiPropertyRow>
+		
+		<cfset collectionPossibleSkus = $.slatwall.getService('SkuService').getSkuCollectionList()  >
+		<cfset collectionPossibleSkus.addFilter("product.productID","#rc.product.getProductID()#") >
+		<cfset collectionPossibleSkus.setDisplayProperties(
+		displayPropertiesList='skuCode,activeFlag,publishedFlag', columnConfig={
+			isVisible=true,
+			isSearchable=true,
+			isDeletable=true
+		}) />
+		<cfset collectionPossibleSkus.addDisplayProperty(displayProperty='skuID',columnConfig={
+				isVisible=false,
+				isSearchable=false,
+				isDeletable=false
+		})/>
 
-	</cf_HibachiEntityDetailForm>
+        <hb:HibachiFieldDisplay 
+            valueOptionsCollectionList="#collectionPossibleSkus#"
+            fieldType="listingMultiselect" 
+            title="Possible Skus" 
+            fieldName="assignedSkus" 
+            edit="true" 
+            displaytype="plainTitle" 
+		    hideMoreActions="true"
+        />
+	
+	</hb:HibachiEntityDetailForm>
 </cfoutput>

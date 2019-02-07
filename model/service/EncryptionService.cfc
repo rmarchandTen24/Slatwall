@@ -48,20 +48,15 @@ Notes:
 */
 component output="false" accessors="true" extends="HibachiService" {
 	
-	public any function init() {
-		if(!encryptionKeyExists()){
-			createEncryptionKey();
-		}
-		return super.init();
-	}
+	property name="settingService" type="any";
 	
 	public string function encryptValue(required string value) {
-		return encrypt(arguments.value, getEncryptionKey(), setting("globalEncryptionAlgorithm"), setting("globalEncryptionEncoding"));
+		return encrypt(arguments.value, getEncryptionKey(), getSettingService().getSettingValue("globalEncryptionAlgorithm"), getSettingService().getSettingValue("globalEncryptionEncoding"));
 	}
 
 	public string function decryptValue(required string value) {
 		try {
-			return decrypt(arguments.value, getEncryptionKey(), setting("globalEncryptionAlgorithm"), setting("globalEncryptionEncoding"));	
+			return decrypt(arguments.value, getEncryptionKey(), getSettingService().getSettingValue("globalEncryptionAlgorithm"), getSettingService().getSettingValue("globalEncryptionEncoding"));	
 		} catch (any e) {
 			logHibachi("There was an error decrypting a value from the database.  This is usually because Slatwall cannot find the Encryption key used to encrypt the data.  Verify that you have a key file in the location specified in the advanced settings of the admin.", true);
 			return "";
@@ -69,7 +64,7 @@ component output="false" accessors="true" extends="HibachiService" {
 	}
 	
 	public string function createEncryptionKey() {
-		var	theKey = generateSecretKey(setting("globalEncryptionAlgorithm"), setting("globalEncryptionKeySize"));
+		var	theKey = generateSecretKey(getSettingService().getSettingValue("globalEncryptionAlgorithm"), getSettingService().getSettingValue("globalEncryptionKeySize"));
 		storeEncryptionKey(theKey);
 		return theKey;
 	}
@@ -85,7 +80,7 @@ component output="false" accessors="true" extends="HibachiService" {
 	}
 	
 	private string function getEncryptionKeyLocation() {
-		return setting("globalEncryptionKeyLocation") NEQ "" ? setting("globalEncryptionKeyLocation") : expandPath('/Slatwall/config/custom/');
+		return getSettingService().getSettingValue("globalEncryptionKeyLocation") NEQ "" ? getSettingService().getSettingValue("globalEncryptionKeyLocation") : expandPath('/Slatwall/custom/system/');
 	}
 	
 	private string function getEncryptionKeyFileName() {
@@ -99,6 +94,12 @@ component output="false" accessors="true" extends="HibachiService" {
 	private void function storeEncryptionKey(required string key) {
 		var theKey = "<crypt><key>#arguments.key#</key></crypt>";
 		fileWrite(getEncryptionKeyFilePath(),theKey);
+	}
+	
+	public void function verifyEncryptionKeyExists() {
+		if(!encryptionKeyExists()){
+			createEncryptionKey();
+		}
 	}
 	
 	// ===================== START: Logical Methods ===========================

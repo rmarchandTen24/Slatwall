@@ -8,6 +8,10 @@ component accessors="true" output="false" persistent="false" {
 		return this;
 	}
 	
+	public any function getApplicationKey(){
+		return getBeanFactory().getBean('applicationKey');
+	}
+	
 	// @help Public method to determine if this is a persistent object (an entity)
 	public any function isPersistent() {
 		var metaData = getThisMetaData();
@@ -15,6 +19,15 @@ component accessors="true" output="false" persistent="false" {
 			return true;
 		}
 		return false;
+	}
+	
+	public string function getRemoteAddress(){
+		var clientIP = cgi.remote_addr;
+		var clientHeaders = GetHttpRequestData().headers;
+		if(structKeyExists(clientHeaders,"X-Forwarded-For")){
+			clientIP = listRemoveDuplicates( ReplaceNoCase( clientHeaders["X-Forwarded-For"] , ' ', '', 'all') );
+		}
+		return clientIP;
 	}
 	
 	// @help Public method to determine if this is a processObject.  This is overridden in the HibachiProcess.cfc
@@ -26,33 +39,58 @@ component accessors="true" output="false" persistent="false" {
 	
 	// @hint gets a bean out of whatever the fw1 bean factory is
 	public any function getBeanFactory() {
-		return application[ getApplicationValue('applicationKey') ].factory;
+		
+		// Attempts to prevent concurrent requests on same server from interfering with each other while reloading beanFactory
+		if (!structKeyExists(variables, 'beanFactory')) {
+			lock scope="Application" timeout="2400" type="readonly" {
+				if (isNull(application[ getApplicationValue('applicationKey') ].factory)) {
+					throw("The beanFactory is expected to exist at this stage. Readonly application lock is applied. It is possible another concurrent request reloaded server and is interfering. Further investigation into this issue is required.");
+				}
+				
+				variables.beanFactory = application[ getApplicationValue('applicationKey') ].factory;
+			}
+		}
+		return variables.beanFactory;
+	}
+	
+	public any function getCustom(){
+		return this;
 	}
 	
 	// @hint gets a bean out of whatever the fw1 bean factory is
-	public any function getBean(required string beanName) {
-		return getBeanFactory().getBean( arguments.beanName );
+	public any function getBean(required string beanName, struct constructorArgs = { }) {
+		return getBeanFactory().getBean( argumentCollection=arguments);
 	}
+	
+	// @hint has a bean out of whatever the fw1 bean factory is
+	public any function hasBean(required string beanName) {
+		return getBeanFactory().containsBean( arguments.beanName );
+	}
+	// @hint sets bean factory, this probably should not ever be invoked outside of  initialization. Application.cfc should take care of this.
+	public void function setBeanFactory(required any beanFactory) {
+		lock name="application_#getHibachiInstanceApplicationScopeKey()#_beanFactory" timeout="10" {
+			application[ getApplicationValue('applicationKey') ].factory = arguments.beanFactory;
+		}
+	}
+
+	// @hint whether or not we have a bean
+	public boolean function hasService(required string serviceName){
+		return hasBean(arguments.serviceName);
+	} 
 	
 	// @hint returns an application scope cached version of the service
 	public any function getService(required string serviceName) {
-		if( !hasApplicationValue("service_#arguments.serviceName#") ) {
-			setApplicationValue("service_#arguments.serviceName#", getBean(arguments.serviceName) );
-		}
-		return getApplicationValue("service_#arguments.serviceName#");
+		return getBean(arguments.serviceName) ;
 	}
 	
 	// @hint returns an application scope cached version of the service
 	public any function getDAO(required string daoName) {
-		if( !hasApplicationValue("dao_#arguments.daoName#") ) {
-			setApplicationValue("dao_#arguments.daoName#", getBean(arguments.daoName) );
-		}
-		return getApplicationValue("dao_#arguments.daoName#");
+		return getBean(arguments.daoName);
 	}
 	
 	// @hint returns a new transient bean
-	public any function getTransient(required string transientName) {
-		return getBean(arguments.transientName);
+	public any function getTransient(required string transientName, struct constructorArgs = { } ) {
+		return getBean(arguments.transientName, arguments.constructorArgs);
 	}
 	
 	// @hint returns an application specfic virtual filesystem
@@ -145,6 +183,11 @@ component accessors="true" output="false" persistent="false" {
 		return replace(lcase(createUUID()), '-', '', 'all');
 	}
 	
+	//Dump & Die, shortcut
+	public any function dd(required any data, numeric top = 2){
+		writeDump(var="#data#", top=arguments.top, abort=true);
+	}
+	
 	// ===========================  END:  UTILITY METHODS ===========================================
 	// ==================== START: INTERNALLY CACHED META VALUES ====================================
 	
@@ -159,6 +202,16 @@ component accessors="true" output="false" persistent="false" {
 	// ====================  END: INTERNALLY CACHED META VALUES =====================================
 	// ========================= START: DELIGATION HELPERS ==========================================
 	
+	public void function addCheckpoint(string description="", string tags, string blockName, any object) {
+		
+		// If no label provided, use the component filename by default
+		if (!structKeyExists(arguments, 'blockName')) {
+			arguments.blockName = listLast(getThisMetaData().path, '/');
+		}
+		
+		getHibachiScope().getProfiler().addCheckpoint(argumentCollection=arguments);
+	}
+	
 	public string function encryptValue(string value) {
 		return getService("hibachiUtilityService").encryptValue(argumentcollection=arguments);
 	}
@@ -167,8 +220,12 @@ component accessors="true" output="false" persistent="false" {
 		return getService("hibachiUtilityService").decryptValue(argumentcollection=arguments);
 	}
 	
+	public string function getIdentityHashCode() {
+		return getService("hibachiUtilityService").getIdentityHashCode(this);
+	}
+	
 	public void function logHibachi(required string message, boolean generalLog=false){
-		getService("hibachiUtilityService").logMessage(message=arguments.message, generalLog=arguments.generalLog);		
+		getService("hibachiUtilityService").logMessage(argumentCollection=arguments);		
 	}
 	
 	public void function logHibachiException(required any exception){
@@ -179,21 +236,26 @@ component accessors="true" output="false" persistent="false" {
 		return getHibachiScope().rbKey(arguments.key);
 	}
 	
+	public string function hibachiHTMLEditFormat(required any html=""){
+		return getHibachiScope().hibachiHTMLEditFormat(arguments.html);
+	}
+	
 	public string function buildURL() {
 		return getApplicationValue("application").buildURL(argumentcollection=arguments);
 	}
 	
 	public any function formatValue( required string value, required string formatType, struct formatDetails={} ) {
 		return getService("hibachiUtilityService").formatValue(argumentcollection=arguments);
-	}
+	} 
 	
 	// =========================  END:  DELIGATION HELPERS ==========================================
 	// ========================= START: APPLICATION VAUES ===========================================
 	
 	// @hint setups an application scope value that will always be consistent
-	private any function getHibachiInstanceApplicationScopeKey() {
-		if(!structKeyExists(variables, "hibachiInstanceApplicationScopeKey")) {
+	public any function getHibachiInstanceApplicationScopeKey() {
+		if(!structKeyExists(variables, "hibachiInstanceApplicationScopeKey") || isNull(variables.hibachiInstanceApplicationScopeKey)) {
 			var metaData = getThisMetaData();
+			
 			do {
 				var filePath = metaData.path;
 				metaData = metaData.extends;
@@ -204,6 +266,7 @@ component accessors="true" output="false" persistent="false" {
 			
 			variables.hibachiInstanceApplicationScopeKey = appKey;	
 		}
+		
 		return variables.hibachiInstanceApplicationScopeKey;
 	}
 	
@@ -216,13 +279,33 @@ component accessors="true" output="false" persistent="false" {
 		return false;
 	}
 	
+	public void function clearApplicationValueByPrefix(required any prefix){
+		if( structKeyExists(application, getHibachiInstanceApplicationScopeKey())) {
+			for(var key in application[ getHibachiInstanceApplicationScopeKey() ]){
+				if(
+					len(arguments.prefix) < len(key)
+					&& arguments.prefix == left(key,len(prefix))
+				){
+					clearApplicationValue(key);
+				}
+			}
+		}
+	}
+	
+	// @hint facade method to check the application scope for a value
+	public void function clearApplicationValue(required any key) {
+		if( structKeyExists(application, getHibachiInstanceApplicationScopeKey()) && structKeyExists(application[ getHibachiInstanceApplicationScopeKey() ], arguments.key)) {
+			structDelete(application[ getHibachiInstanceApplicationScopeKey() ], arguments.key);
+		}
+	}
+	
 	// @hint facade method to get values from the application scope
 	public any function getApplicationValue(required any key) {
 		if( structKeyExists(application, getHibachiInstanceApplicationScopeKey()) && structKeyExists(application[ getHibachiInstanceApplicationScopeKey() ], arguments.key)) {
 			return application[ getHibachiInstanceApplicationScopeKey() ][ arguments.key ];
 		}
 		
-		throw("You have requested a value for '#arguments.key#' from the core hibachi application that is not setup.  This may be because the verifyApplicationSetup() method has not been called yet")
+		throw("You have requested a value for '#arguments.key#' from the core hibachi application that is not setup.  This may be because the verifyApplicationSetup() method has not been called yet");
 	}
 	
 	// @hint facade method to set values in the application scope 
@@ -233,48 +316,35 @@ component accessors="true" output="false" persistent="false" {
 				application[ getHibachiInstanceApplicationScopeKey() ].initialized = false;
 			}
 			application[ getHibachiInstanceApplicationScopeKey() ][ arguments.key ] = arguments.value;
-			if(isSimpleValue(arguments.value) && hasApplicationValue("applicationKey") && !findNoCase("password", arguments.key) && !findNoCase("username", arguments.key)) {
+			if(isSimpleValue(arguments.value) && hasApplicationValue("applicationKey") && !findNoCase("password", arguments.key) && !findNoCase("username", arguments.key) && len(arguments.value) < 100) {
 				writeLog(file="#getApplicationValue('applicationKey')#", text="General Log - Application Value '#arguments.key#' set as: #arguments.value#");
 			}
 		}
 	}
 	
-	// @hint facade method to check the application scope for a value
+	// @hint facade method to check the session scope for a value
+	public void function clearSessionValue(required any key) {
+		getHibachiScope().clearSessionValue(arguments.key);
+	}
+	
+	// @hint facade method to check the session scope for a value
 	public boolean function hasSessionValue(required any key) {
-		param name="session" default="#structNew()#";
-		if( structKeyExists(session, getHibachiInstanceApplicationScopeKey()) && structKeyExists(session[ getHibachiInstanceApplicationScopeKey() ], arguments.key)) {
-			return true;
-		}
-		
-		return false;
+		return getHibachiScope().hasSessionValue(arguments.key);
 	}
 	
-	// @hint facade method to get values from the application scope
+	// @hint facade method to get values from the session scope
 	public any function getSessionValue(required any key) {
-		if( structKeyExists(session, getHibachiInstanceApplicationScopeKey()) && structKeyExists(session[ getHibachiInstanceApplicationScopeKey() ], arguments.key)) {
-			return session[ getHibachiInstanceApplicationScopeKey() ][ arguments.key ];
-		}
-		
-		throw("You have requested a value for '#arguments.key#' from the core application that is not setup.  This may be because the verifyApplicationSetup() method has not been called yet")
+		return getHibachiScope().getSessionValue(arguments.key);
 	}
 	
-	// @hint facade method to set values in the application scope 
+	// @hint facade method to set values in the session scope 
 	public void function setSessionValue(required any key, required any value) {
-		var sessionKey = "";
-		if(structKeyExists(COOKIE, "JSESSIONID")) {
-			sessionKey = COOKIE.JSESSIONID;
-		} else if (structKeyExists(COOKIE, "CFTOKEN")) {
-			sessionKey = COOKIE.CFTOKEN;
-		} else if (structKeyExists(COOKIE, "CFID")) {
-			sessionKey = COOKIE.CFID;
-		}
-		lock name="#sessionKey#_#getHibachiInstanceApplicationScopeKey()#_#arguments.key#" timeout="10" {
-			if(!structKeyExists(session, getHibachiInstanceApplicationScopeKey())) {
-				session[ getHibachiInstanceApplicationScopeKey() ] = {};
-			}
-			session[ getHibachiInstanceApplicationScopeKey() ][ arguments.key ] = arguments.value;
-		}
+		getHibachiScope().setSessionValue(arguments.key,arguments.value);
 	}
 	
-	// ========================= START: APPLICATION VAUES ===========================================
+	public void function clearVariablesKey(required string key){
+		structDelete(variables,arguments.key);
+	}
+
+	// ========================= END: APPLICATION VAUES ===========================================
 }

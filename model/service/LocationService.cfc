@@ -49,22 +49,79 @@ Notes:
 component extends="HibachiService" persistent="false" accessors="true" output="false" {
 	
 	property name="locationDAO" type="any";
+	property name="stockDAO" type="any";
+	property name="skuService" type="any";
+	property name="inventoryService" type="any";
 	
 	public boolean function isLocationBeingUsed(required any location) {
 		return getLocationDAO().isLocationBeingUsed(arguments.location);
+	}
+	
+	public numeric function getChildLocationCount(required any location){
+		return getLocationDao().getChildLocationCount(arguments.location.getLocationID());
 	}
 	
 	public numeric function getLocationCount() {
 		return getLocationDAO().getLocationCount();
 	}
 	
-	public array function getLocationOptions() {
+	// Returns array of leaf locations, i.e. locations that can have stock
+	// @locationID string If specified will be used as top level location
+	public array function getLocationOptions(string locationID, string nameProperty = 'calculatedLocationPathName', boolean includeTopLevelLocation=false) {
+		var locationOptions = [];
 		var smartList = this.getLocationSmartList();
+		smartlist.addSelect(arguments.nameProperty, 'name');
+		smartlist.addSelect('locationID', 'value');
+
+		// Use arguments locationID as top level location to find leaf locations
+		if(structKeyExists(arguments,"locationID")) {
+			smartList.addWhereCondition("locationIDPath LIKE :parentLocationID AND aslatwalllocation.childLocations IS EMPTY", {parentLocationID = '%#arguments.locationID#%'});
+		}
+		smartList.addOrder("locationIDPath|DESC");
+		var locationOptions = smartList.getRecords();
+
+		if( arguments.includeTopLevelLocation ) { 
+			var topLevelLocation = this.getLocation(arguments.locationID);
+			arrayPrepend(locationOptions, {name=topLevelLocation.getLocationName(), value=topLevelLocation.getLocationID()});
+		}
 		
-		smartList.addSelect('locationID', 'value');
-		smartList.addSelect('locationName', 'name');
+		return locationOptions;
+	}
+	
+	// Returns array including all locations
+	// @includeNone Boolean If true then 'None' will be included as an option
+	public array function getLocationParentOptions(boolean includeNone=true) {
+		var locationParentOptions = [];
 		
-		return smartList.getRecords(); 
+		var smartList = this.getLocationSmartList();
+		smartList.addOrder("locationName,locationIDPath|DESC");
+		var locations = smartList.getRecords();
+		
+		if( includeNone ) { 
+			arrayAppend(locationParentOptions, {name="None", value=""}); 
+		}
+		
+		for(var i=1;i<=arrayLen(locations);i++) {
+			arrayAppend(locationParentOptions, {name=locations[i].getSimpleRepresentation(), value=locations[i].getLocationID()});
+		}
+		
+		return locationParentOptions;
+
+	}
+	
+	// Returns array of a location and all of its children
+	// @locationID String Top level location 
+	public array function getLocationAndChildren( required string locationID ) {
+		var cacheKey = 'locationService_getLocationAndChildren_#arguments.locationID#';
+		if(!getService('HibachiCacheService').hasCachedValue(cacheKey)){
+			var smartList = this.getLocationSmartList();
+			smartList.addLikeFilter( "locationIDPath", "%#arguments.locationID#%" );
+			smartlist.addSelect('calculatedLocationPathName','name');
+			smartlist.addSelect('locationID','value');
+			var locAndChildren = smartList.getRecords();
+			getService('HibachiCacheService').setCachedValue(cacheKey,locAndChildren,DateAdd('n',60,now()));
+		}
+		return getService('HibachiCacheService').getCachedValue(cacheKey);
 	}
 	
 	// ===================== START: Logical Methods ===========================
@@ -73,13 +130,47 @@ component extends="HibachiService" persistent="false" accessors="true" output="f
 	
 	// ===================== START: DAO Passthrough ===========================
 	
+	public any function updateStockLocation(required string fromLocationID, required string toLocationID) {
+		getStockDAO().updateStockLocation( argumentCollection=arguments );
+	}
+	
 	// ===================== START: DAO Passthrough ===========================
 	
 	// ===================== START: Process Methods ===========================
-	
+
 	// =====================  END: Process Methods ============================
 	
 	// ====================== START: Save Overrides ===========================
+	
+	public any function saveLocation(required any location, struct data={}) {
+		
+		arguments.location = super.save(arguments.location, arguments.data);
+		
+		if(!location.hasErrors()){
+			var isNew = arguments.location.isNew();
+			// We need to persist the state here, so that we can have the locationID in the database
+			getHibachiDAO().flushORMSession();
+			
+			// If this location has any stocks then we need to update them
+			if( isNew && !isNull(arguments.location.getParentLocation()) && arguments.location.getParentLocation().getStocksCount() ) {
+				updateStockLocation( fromLocationID=arguments.location.getParentLocation().getlocationID(), toLocationID=arguments.location.getlocationID());
+			}
+		}
+		
+		return arguments.location;
+	}
+	
+	public any function saveLocationAddress(required any locationAddress, required struct data){
+		arguments.locationAddress = super.save(arguments.locationAddress, arguments.data);
+		if(
+			!arguments.locationAddress.hasErrors() 
+			&& !isNull(arguments.locationAddress.getLocation())
+			&& isNull(arguments.locationAddress.getLocation().getPrimaryAddress()) 
+		){
+			arguments.locationAddress.getLocation().setPrimaryAddress(arguments.locationAddress);
+		}
+		return arguments.locationAddress;
+	}
 	
 	// ======================  END: Save Overrides ============================
 

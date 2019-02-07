@@ -53,6 +53,7 @@ component entityname="SlatwallSubscriptionBenefit" table="SwSubsBenefit" persist
 	property name="subscriptionBenefitName" ormtype="string";
 	property name="maxUseCount" ormtype="integer";
 	
+	
 	// Related Object Properties (many-to-one)
 	property name="accessType" cfc="Type" fieldtype="many-to-one" fkcolumn="accessTypeID" hb_optionsSmartListData="f:parentType.systemCode=accessType";
 	
@@ -83,11 +84,11 @@ component entityname="SlatwallSubscriptionBenefit" table="SwSubsBenefit" persist
 	
     public array function getAccessTypeOptions() {
 		if(!structKeyExists(variables, "accessTypeOptions")) {
-			var smartList = getService("settingService").getTypeSmartList();
-			smartList.addSelect(propertyIdentifier="type", alias="name");
+			var smartList = getService("typeService").getTypeSmartList();
+			smartList.addSelect(propertyIdentifier="typeName", alias="name");
 			smartList.addSelect(propertyIdentifier="typeID", alias="value");
-			smartList.addFilter(propertyIdentifier="parentType_systemCode", value="subscriptionAccessType");
-			smartList.addOrder("type|ASC");
+			smartList.addFilter(propertyIdentifier="parentType.systemCode", value="subscriptionAccessType");
+			smartList.addOrder("typeName|ASC");
 			variables.accessTypeOptions = smartList.getRecords();
 			arrayPrepend(variables.accessTypeOptions,{name=rbKey("define.select"),value=""});
 		}

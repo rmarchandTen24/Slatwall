@@ -48,7 +48,7 @@ Notes:
 */
 component extends="Slatwall.meta.tests.unit.entity.SlatwallEntityTestBase" {
 
-	// @hint put things in here that you want to run befor EACH test
+	// @hint put things in here that you want to run befor EACH test	
 	public void function setUp() {
 		super.setup();
 		
@@ -56,11 +56,6 @@ component extends="Slatwall.meta.tests.unit.entity.SlatwallEntityTestBase" {
 		variables.entity = request.slatwallScope.getService( variables.entityService ).newAddress();
 	}
 	
-	// Addresses are alowed to be saved with no data
-	public void function validate_as_save_for_a_new_instance_doesnt_pass() {
-		variables.entity.validate(context="save");
-		assertFalse(variables.entity.hasErrors());
-	}
 	
 }
 

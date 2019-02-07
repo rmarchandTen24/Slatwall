@@ -1,3 +1,4 @@
+<cfimport prefix="hb" taglib="../../../org/Hibachi/HibachiTags" />
 <cfif thisTag.executionMode is "start">
 	<!--- Implicit --->
 	<cfparam name="attributes.hibachiScope" type="any" default="#request.context.fw.getHibachiScope()#" />	
@@ -8,6 +9,7 @@
 	
 	<!--- These are optional Attributes --->
 	<cfparam name="attributes.edit" type="boolean" default="false" />						<!--- hint: When in edit mode this will create a Form Field, otherwise it will just display the value" --->
+	<cfparam name="attributes.requiredFlag" type="boolean" default="false" />				<!--- Determines whether property is required or not in edit mode --->
 	
 	<cfparam name="attributes.title" type="string" default="" />							<!--- hint: This can be used to override the displayName of a property" --->
 	<cfparam name="attributes.hint" type="string" default="" />								<!--- hint: If specified, then this will produce a tooltip around the title --->
@@ -18,7 +20,7 @@
 	<cfparam name="attributes.valueDefault" type="string" default="" />						<!--- hint: This can be used to set a default value for the property IF it hasn't been defined  NOTE: right now this only works for select boxes--->
 	<cfparam name="attributes.valueLink" type="string" default="" />						<!--- hint: if specified, will wrap property value with an achor tag using the attribute as the href value --->
 	<cfparam name="attributes.valueFormatType" type="string" default="" />					<!--- hint: This can be used to defined the format of this property wehn it is displayed --->
-
+	
 	<cfparam name="attributes.fieldName" type="string" default="" />						<!--- hint: This can be used to override the default field name" --->
 	<cfparam name="attributes.fieldType" type="string" default="" />						<!--- hint: When in edit mode you can override the default type of form object to use" --->
 	
@@ -36,12 +38,17 @@
 	<cfparam name="attributes.modalCreateAction" type="string" default="" />				<!--- hint: This allows for a special admin action to be passed in where the saving of that action will automatically return the results to this field --->
 	
 	<cfparam name="attributes.autocompletePropertyIdentifiers" type="string" default="" />	<!--- hint: This describes the list of properties that we want to get from an entity --->
+	<cfparam name="attributes.autocompleteFilters" type="string" default="" />
 	<cfparam name="attributes.autocompleteNameProperty" type="string" default="" />			<!--- hint: This is the value property that will get assigned to the hidden field when selected --->
 	<cfparam name="attributes.autocompleteValueProperty" type="string" default="" /> 		<!--- hint: This is the single name property that shows once an option is selected --->
 	<cfparam name="attributes.autocompleteSelectedValueDetails" type="struct" default="#structNew()#" />
-	
-	<cfparam name="attributes.fieldAttributes" type="string" default="" />					<!--- hint: This is uesd to pass specific additional fieldAttributes when in edit mode --->
-	
+	<cfparam name="attributes.autocompleteDataEntity" type="string" default="" />
+	<cfparam name="attributes.showActiveFlag" type="boolean" default="false" />
+	<cfparam name="attributes.maxrecords" type="string" default="25" />
+
+	<cfparam name="attributes.fieldAttributes" type="string" default="" />					<!--- hint: This is used to pass specific additional fieldAttributes when in edit mode --->
+	<cfparam name="attributes.ignoreHTMLEditFormat" type="boolean" default="false" />
+	<cfparam name="attributes.showEmptySelectBox" type="boolean" default="#false#" /> 		<!--- If set to false, will hide select box if no options are available --->
 	<!---
 		attributes.fieldType have the following options:
 		
@@ -60,7 +67,7 @@
 		wysiwyg				|	Value needs to be a string
 		yesno				|	This is used by booleans and flags to create a radio group of Yes and No
 		textautocomplete	|	This fieldtype will query an entity to get specific values
-		
+		typeahead			|	This is the new typeahead search functionality but seperated form textautocomplete to prevent issues
 	--->
 	
 	<!---
@@ -87,9 +94,16 @@
 				<cfset attributes.fieldType = attributes.object.getPropertyFieldType( attributes.property ) />
 			</cfif>
 			
+			<cfif attributes.fieldType eq 'wysiwyg'>
+				<cfset attributes.ignoreHTMLEditFormat = true/>
+			</cfif>
+			
 			<!--- If this is in edit mode then get the pertinent field info --->
 			<cfif attributes.edit or attributes.fieldType eq "listingMultiselect">
 				<cfset attributes.fieldClass = listAppend(attributes.fieldClass, attributes.object.getPropertyValidationClass( attributes.property ), " ") />
+				<cfif listFindNoCase(attributes.fieldClass, "required", " ")>
+					<cfset attributes.requiredFlag = true />
+				</cfif>
 				<cfif attributes.fieldName eq "">
 					<cfset attributes.fieldName = attributes.object.getPropertyFieldName( attributes.property ) />
 				</cfif>
@@ -105,8 +119,10 @@
 			</cfif>
 			
 			<!--- Setup textautocomplete values if they wern't passed in --->
-			<cfif attributes.fieldType eq "textautocomplete">
+			<cfif attributes.fieldType eq "textautocomplete" OR attributes.fieldType eq "typeahead">
+				<cfset attributes.autocompleteDataEntity = attributes.object.getPropertyMetaData(attributes.property)['cfc'] />
 				<cfset attributes.fieldAttributes = listAppend(attributes.fieldAttributes, 'data-acpropertyidentifiers="#attributes.autocompletePropertyIdentifiers#"', ' ') />
+				<cfset attributes.fieldAttributes = listAppend(attributes.fieldAttributes, 'data-acfilters="#attributes.autocompleteFilters#"', ' ') />
 				<cfset attributes.fieldAttributes = listAppend(attributes.fieldAttributes, 'data-entityName="#listLast(attributes.object.getPropertyMetaData(attributes.property).cfc,'.')#"', ' ') />
 				<cfif not len(attributes.autocompleteValueProperty)>
 					<cfset attributes.autocompleteValueProperty = listLast(attributes.fieldName, '.') />
@@ -127,11 +143,18 @@
 					<cfset attributes.value = attributes.valueDefault />
 				</cfif>
 				
+				<cfif attributes.edit eq 'true' 
+						AND attributes.object.getPropertyFormatType( attributes.property ) eq 'currency'
+						AND !structKeyExists(attributes.object.getPropertyMetaData(attributes.property), "hb_nullRBKey")
+				>
+					<cfset attributes.value = attributes.object.getFormattedValue(attributes.property,'decimal') />
+				</cfif>
+				
 				<!--- If the value was an object, typically a MANY-TO-ONE, then we get either the identifierValue or for display a simpleRepresentation --->
 				<cfif isObject(attributes.value) && attributes.object.isPersistent()>
 					<cfif attributes.edit>
 						<!--- If this is a textautocomplete then we need to setup all of the propertyIdentifiers --->
-						<cfif attributes.fieldType eq "textautocomplete">
+						<cfif attributes.fieldType eq "textautocomplete" OR attributes.fieldType eq "typeahead">
 							<cfloop list="#attributes.autocompletePropertyIdentifiers#" index="pi">
 								<cfset attributes.autocompleteSelectedValueDetails[ pi ] = attributes.value.getValueByPropertyIdentifier( pi ) />
 							</cfloop>
@@ -176,6 +199,7 @@
 						<cfset attributes.value = "" />
 					</cfif>
 				</cfif>
+				
 			</cfif>
 			
 			<!--- Set up the property title --->
@@ -205,7 +229,7 @@
 			</cfif>
 		</cfsilent>
 		
-		<cf_HibachiFieldDisplay attributecollection="#attributes#" />
+		<hb:HibachiFieldDisplay attributecollection="#attributes#" />
 	</cfif>
 
 </cfif>

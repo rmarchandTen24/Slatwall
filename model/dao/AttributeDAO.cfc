@@ -55,8 +55,8 @@ Notes:
 		<cfreturn ormExecuteQuery("SELECT av FROM SlatwallAttributeValue av INNER JOIN FETCH av.attribute att INNER JOIN FETCH att.attributeSet ats WHERE av.#primaryIDPropertyIdentifier# = ?", [arguments.primaryIDValue], false, {ignoreCase="true"}) />
 	</cffunction>
 	
-	<cffunction name="getAttributeCodesQueryByAttributeSetType" returntype="query" access="public">
-		<cfargument name="attributeSetType" required="true" type="string" />
+	<cffunction name="getAttributeCodesQueryByAttributeSetObject" returntype="query" access="public">
+		<cfargument name="attributeSetObject" required="true" type="string" />
 		
 		<cfset var rs = "" />
 		<cfquery name="rs">
@@ -66,12 +66,59 @@ Notes:
 				SwAttribute
 			  INNER JOIN
 			  	SwAttributeSet on SwAttribute.attributeSetID = SwAttributeSet.attributeSetID
-			  INNER JOIN
-			  	SwType on SwAttributeSet.attributeSetTypeID = SwType.typeID
 			WHERE
-				SwType.systemCode = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.attributeSetType#"/>
+				SwAttributeSet.attributeSetObject = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.attributeSetObject#"/>
 		</cfquery>
 		<cfreturn rs />
-	</cffunction> 
+	</cffunction>
 	
+	<cffunction name="removeAttributeOptionFromAllAttributeValues">
+		<cfargument name="attributeOptionID" type="string" required="true" >
+		
+		<cfset var rs = "" />
+		
+		<cfquery name="rs">
+			UPDATE
+				SwAttributeValue
+			SET
+				attributeValueOptionID = null
+			WHERE
+				attributeValueOptionID = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.attributeOptionID#" /> 
+		</cfquery>
+	</cffunction>
+	
+	<cffunction name = "getAttributeDataQueryByCustomPropertyFlag" returnType = "query">
+		<cfquery name = "local.attributeDataQuery">
+				SELECT
+					att.attributeID,att.attributeCode, att.attributeName, att.attributeInputType, att.relatedObject, att.typeSetID, attset.attributeSetObject,att.isMigratedFlag, att.defaultValue
+				FROM
+					SwAttribute att
+				INNER JOIN
+					SwAttributeSet attset ON att.attributeSetID = attset.attributeSetID
+				WHERE
+					att.customPropertyFlag = 1 AND att.activeFlag = 1 AND attset.activeFlag = 1
+		
+		</cfquery>
+		<cfreturn local.attributeDataQuery/>
+	</cffunction>
+	
+	<cffunction name = "getAttributesDataByEntityName">
+		<cfargument name="entityName" type="string" required="true" >
+		
+		<cfquery name = "local.attributesDataQuery">
+				SELECT attributeCode, attributeInputType 
+				FROM swAttribute
+				INNER JOIN swAttributeSet on swAttribute.attributeSetID = swAttributeSet.attributeSetID
+				WHERE
+					( swAttribute.customPropertyFlag is null OR swAttribute.customPropertyFlag = 0 )
+				AND
+					swAttributeSet.activeFlag = 1
+				AND 
+					swAttributeSet.globalFlag = 1
+				AND 
+					swAttributeSet.attributeSetObject = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.entityName#"/>
+		</cfquery>
+		<cfreturn local.attributesDataQuery />
+	</cffunction>
+
 </cfcomponent>

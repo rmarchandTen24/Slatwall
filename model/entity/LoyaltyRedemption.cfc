@@ -36,7 +36,7 @@
 Notes:
 
 */
-component displayname="Loyalty Redemption" entityname="SlatwallLoyaltyRedemption" table="SwLoyaltyRedemption" persistent="true"  extends="HibachiEntity" cacheuse="transactional" hb_serviceName="loyaltyService" hb_permission="this" {
+component displayname="Loyalty Redemption" entityname="SlatwallLoyaltyRedemption" table="SwLoyaltyRedemption" persistent="true"  extends="HibachiEntity" cacheuse="transactional" hb_serviceName="loyaltyService" hb_permission="this" hb_processContext="redeem" {
 	
 	// Persistent Properties
 	property name="loyaltyRedemptionID" ormtype="string" length="32" fieldtype="id" generator="uuid" unsavedvalue="" default="";
@@ -44,7 +44,7 @@ component displayname="Loyalty Redemption" entityname="SlatwallLoyaltyRedemption
 	property name="redemptionType" ormType="string" hb_formatType="rbKey" hb_formFieldType="select";
 	property name="autoRedemptionType" ormType="string" hb_formatType="rbKey" hb_formFieldType="select";
 	property name="amountType" ormType="string" hb_formatType="rbKey" hb_formFieldType="select";
-	property name="amount" ormType="big_decimal";
+	property name="amount" ormType="big_decimal" hb_formatType="currency";
 	property name="activeFlag" ormtype="boolean" default="1";
 	property name="nextRedemptionDateTime" ormtype="timestamp" hb_nullRBKey="define.forever";
 	property name="currencyCode" ormtype="string" length="3";

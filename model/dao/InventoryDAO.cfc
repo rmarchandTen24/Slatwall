@@ -49,22 +49,54 @@ Notes:
 <cfcomponent extends="HibachiDAO">
 	
 	<cfscript>
+		 
+		public array function getQOHbyProductTypeID(required string productTypeID){
+			var params = [arguments.productTypeID];
+			var hql = "SELECT NEW MAP(coalesce( sum(inventory.quantityIn), 0 ) - coalesce( sum(inventory.quantityOut), 0 ) as QOH)
+						FROM
+							SlatwallInventory inventory
+							LEFT JOIN inventory.stock stock
+							LEFT JOIN stock.sku sku
+							LEFT JOIN stock.location location
+						WHERE
+							sku.product.productType.productTypeID = ?
+						GROUP BY
+							sku.skuID,
+							stock.stockID,
+							location.locationID,
+							location.locationIDPath";
+
+			return ormExecuteQuery(hql, params);
+		}
 		
 		// Quantity on hand. Physically at any location
-		public array function getQOH(required string productID, string productRemoteID) {
-			var params = [arguments.productID];
-			
-			var hql = "SELECT NEW MAP(coalesce( sum(inventory.quantityIn), 0 ) - coalesce( sum(inventory.quantityOut), 0 ) as QOH, inventory.stock.sku.skuID as skuID, inventory.stock.stockID as stockID, inventory.stock.location.locationID as locationID)
-					FROM
-						SlatwallInventory inventory
-					WHERE
-						inventory.stock.sku.product.productID = ?
-					GROUP BY
-						inventory.stock.sku.skuID,
-						inventory.stock.stockID,
-						inventory.stock.location.locationID";
+		public array function getQOH(required string productID, string productRemoteID, string currencyCode) {
+			var params = {productID=arguments.productID};
+			var hql = "SELECT NEW MAP(coalesce( sum(inventory.quantityIn), 0 ) - coalesce( sum(inventory.quantityOut), 0 ) as QOH, 
+							sku.skuID as skuID, 
+							stock.stockID as stockID, 
+							location.locationID as locationID, 
+							location.locationIDPath as locationIDPath
+						)
+						FROM
+							SlatwallInventory inventory
+							LEFT JOIN inventory.stock stock
+							LEFT JOIN stock.sku sku
+							LEFT JOIN stock.location location
+						WHERE
+							sku.product.productID = :productID
+						";
+			if(structKeyExists(arguments,'currencyCode')){
+				hql &= " AND inventory.currencyCode=:currencyCode ";
+				params['currencyCode'] = arguments.currencyCode;
+			}
 						
-			
+			hql &=" GROUP BY
+							sku.skuID,
+							stock.stockID,
+							location.locationID,
+							location.locationIDPath";
+
 			return ormExecuteQuery(hql, params);
 		}
 		
@@ -74,107 +106,611 @@ Notes:
 			return 0;
 		}
 		
+		//Quantity on Order
+		public array function getQOO(required string productID, string productRemoteID){
+			var params = { productID = arguments.productID, currentTime=now() };
+			var hql = "SELECT NEW MAP(
+							COALESCE(sum(orderItem.quantity),0) as QOO, 
+							sku.skuID as skuID, 
+							stock.stockID as stockID, 
+							location.locationID as locationID, 
+							location.locationIDPath as locationIDPath
+						)
+						FROM SlatwallOrderItem orderItem
+					  	  LEFT JOIN
+					  	  	orderItem.stock stock
+					  	  LEFT JOIN 
+					  	  	stock.location location
+					  	  LEFT JOIN 
+					  	  	orderItem.sku sku
+					  	  LEFT JOIN
+					  		orderItem.stockHolds stockHold
+						WHERE
+									(
+										orderItem.order.orderStatusType.systemCode NOT IN ('ostNotPlaced','ostClosed','ostCanceled')
+										OR 
+										(
+											stockHold.stockHoldExpirationDateTime > :currentTime
+											AND orderItem.order.orderStatusType.systemCode = 'ostNotPlaced'
+										)
+										OR 
+										orderItem.order.paymentProcessingInProgressFlag=1
+									)
+						  			AND
+						  				orderItem.orderItemType.systemCode = 'oitSale'
+						  			AND 
+										sku.product.productID = :productID
+						GROUP BY
+						sku.skuID, 
+						stock.stockID, 
+						location.locationID, 
+						location.locationIDPath
+					  	 ";
+			var QOO = ORMExecuteQuery(hql,params);	
+			return QOO;
+		}	
+		
+		//Quantity Delivered on Order
+		public array function getQDOO(required string productID, string productRemoteID){
+			var hql = "SELECT NEW MAP(
+							coalesce( sum(orderDeliveryItem.quantity), 0 ) as QDOO, 
+							sku.skuID as skuID, 
+							stock.stockID as stockID, 
+							location.locationID as locationID, 
+							location.locationIDPath as locationIDPath)
+						FROM
+							SlatwallOrderItem orderItem
+						  LEFT JOIN
+					  		orderItem.orderDeliveryItems orderDeliveryItem
+					  	  LEFT JOIN
+					  	  	orderItem.stock stock
+					  	  LEFT JOIN
+					  	  	orderItem.sku sku
+					  	  LEFT JOIN 
+					  	  	stock.location location
+						WHERE
+							orderItem.order.orderStatusType.systemCode NOT IN ('ostNotPlaced','ostClosed','ostCanceled')
+						  AND
+						  	orderItem.orderItemType.systemCode = 'oitSale'
+						  AND 
+							sku.product.productID = :productID
+						GROUP BY
+							sku.skuID,
+							stock.stockID,
+							location.locationID,
+							location.locationIDPath";
+			var QDOO = ormExecuteQuery(hql, {productID=arguments.productID});	
+			return QDOO;
+		}	
+		
 		// Quantity Not Delivered on Order 
 		public array function getQNDOO(required string productID, string productRemoteID) {
+			var QNDOO = [];
 			
-			var params = [ arguments.productID ];
-			var hql = "SELECT NEW MAP(coalesce( sum(orderItem.quantity), 0 ) - coalesce( sum(orderDeliveryItem.quantity), 0 ) as QNDOO, orderItem.sku.skuID as skuID, stock.stockID as stockID, stock.location.locationID as locationID)
+			var params = { productID = arguments.productID };
+			
+			var QDOO = getQDOO(productID=arguments.productID);
+			
+			var QDOOHashMap = {};
+			
+			//This variable will store the total QDOO and QOO by skuID
+			var skuTotalsHashMap = {};
+			
+			for(var i=1;i <= arrayLen(QDOO);i++){
+				
+				if ( structKeyExists(QDOO[i], 'stockID')){
+					QDOOHashMap["#QDOO[i]['stockID']#"] = QDOO[i]; 
+				} else {
+					QDOOHashMap["#QDOO[i]['skuID']#"] = QDOO[i]; 
+				}
+				
+				if ( !structKeyExists(skuTotalsHashMap, "#QDOO[i]['skuID']#") ){
+					skuTotalsHashMap["#QDOO[i]['skuID']#"]['totalQDOO'] = 0;
+					skuTotalsHashMap["#QDOO[i]['skuID']#"]['totalQOO'] = 0;
+				}
+				
+				skuTotalsHashMap["#QDOO[i]['skuID']#"]['totalQDOO'] += QDOO[i]['QDOO'];
+				
+			}
+			
+			var QOO = getQOO(productID=arguments.productID);
+			
+			for(var item in QOO){ 
+				skuTotalsHashMap[item['skuID']]['totalQOO'] += item['QOO'];
+			}
+			
+			for(var QOOData in QOO){
+				var record = {};
+				record['skuID'] = QOOData['skuID'];
+				if(structKeyExists(QOOData,'stockID')){
+					record['stockID'] = QOOData['stockID'];
+				}else{
+					record['stockID'] = javacast('null','');
+				}
+				if(structKeyExists(QOOData,'locationID')){
+					record['locationID'] = QOOData['locationID'];	
+				}else{
+					record['locationID'] = javacast('null','');
+				}
+				if(structKeyExists(QOOData,'locationIDPath')){
+					record['locationIDPath'] = QOOData['locationIDPath'];
+				}else{
+					record['locationIDPath'] = javacast('null','');
+				}
+				var quantityReceived = 0;
+				
+				if( structKeyExists(QOOData, 'stockID' ) && structKeyExists(QDOOHashMap,"#QOOData['stockID']#")){
+					quantityReceived = QDOOHashMap['#QOOData['stockID']#']['QDOO'];
+						
+					record['QNDOO'] = QOOData['QOO'] - quantityReceived;
+				}else if( structKeyExists(skuTotalsHashMap,'#QOOData['skuID']#') ){
+					
+					record['QNDOO'] = skuTotalsHashMap["#QOOData['skuID']#"]['totalQOO'] - skuTotalsHashMap["#QOOData['skuID']#"]['totalQDOO'];
+				}
+				
+				arrayAppend(QNDOO,record);
+			}
+			
+			return QNDOO;	
+		}
+		
+		//Quantity delivered on stock adjustment
+		public array function getQDOSA(required string productID, string productRemoteID) {
+			var params = {productiD=arguments.productID};
+			var hql = "SELECT NEW MAP(
+					coalesce( sum(stockAdjustmentDeliveryItem.quantity), 0 ) as QDOSA, 
+						fromStock.sku.skuID as skuID, 
+						fromStock.stockID as stockID, 
+						location.locationID as locationID, 
+						location.locationIDPath as locationIDPath)
 					FROM
-						SlatwallOrderItem orderItem
+						SlatwallStockAdjustmentItem stockAdjustmentItem
 					  LEFT JOIN
-				  		orderItem.orderDeliveryItems orderDeliveryItem
-				  	  LEFT JOIN
-				  	  	orderItem.stock stock
+					  	stockAdjustmentItem.stockAdjustmentDeliveryItems stockAdjustmentDeliveryItem
+					  LEFT JOIN
+					  	stockAdjustmentItem.fromStock fromStock
+					  LEFT JOIN
+					  	fromStock.location location
 					WHERE
-						orderItem.order.orderStatusType.systemCode != 'ostNotPlaced'
+						stockAdjustmentItem.stockAdjustment.stockAdjustmentStatusType.systemCode != 'sastClosed'
 					  AND
-					    orderItem.order.orderStatusType.systemCode != 'ostClosed'
-					  AND
-					  	orderItem.orderItemType.systemCode = 'oitSale'
-					  AND 
-						orderItem.sku.product.productID = ?
+						fromStock.sku.product.productID = :productID
 					GROUP BY
-						orderItem.sku.skuID,
-						stock.stockID,
-						stock.location.locationID";
+						fromStock.sku.skuID,
+						fromStock.stockID,
+						location.locationID,
+						location.locationIDPath";
 			
 			return ormExecuteQuery(hql, params);
+		}
+		//Quantity on stock adjustment
+		public array function getQOSA(required string productID, string direction) {
+			var params = {productID=arguments.productID};
+			var stockDirection = "#arguments.direction#Stock";
+			var stockAdjustmentItemQuantityHql = "SELECT NEW MAP(
+								COALESCE(sum(stockAdjustmentItem.quantity),0) as QOSA,
+								#stockDirection#.sku.skuID as skuID, 
+								#stockDirection#.stockID as stockID, 
+								location.locationID as locationID, 
+								location.locationIDPath as locationIDPath
+							)
+							FROM SlatwallStockAdjustmentItem stockAdjustmentItem
+								 LEFT JOIN
+								  	stockAdjustmentItem.#stockDirection# #stockDirection#
+								  LEFT JOIN
+								  	#stockDirection#.location location
+							WHERE
+								stockAdjustmentItem.stockAdjustment.stockAdjustmentStatusType.systemCode != 'sastClosed'
+							  AND
+								#stockDirection#.sku.product.productID = :productID
+							GROUP BY
+								#stockDirection#.sku.skuID,
+								#stockDirection#.stockID,
+								location.locationID,
+								location.locationIDPath
+									";
 			
+			return ORMExecuteQuery(stockAdjustmentItemQuantityHql,params);
 		}
-		
-		// Quantity not delivered on return vendor order 
-		public numeric function getQNDORVO(required string productID, string productRemoteID) {
-			// TODO: Impliment this later when we add return vendor orders
-			return 0;
-		}
-		
 		// Quantity not delivered on stock adjustment
 		public array function getQNDOSA(required string productID, string productRemoteID) {
+			var QNDOSA = [];
 			
-			var params = [ arguments.productID ];
-			var hql = "SELECT NEW MAP(coalesce( sum(stockAdjustmentItem.quantity), 0 ) - coalesce( sum(stockAdjustmentDeliveryItem.quantity), 0 ) as QNDOSA, stockAdjustmentItem.fromStock.sku.skuID as skuID, stockAdjustmentItem.fromStock.stockID as stockID, stockAdjustmentItem.fromStock.location.locationID as locationID)
-				FROM
-					SlatwallStockAdjustmentItem stockAdjustmentItem
-				  LEFT JOIN
-				  	stockAdjustmentItem.stockAdjustmentDeliveryItems stockAdjustmentDeliveryItem
-				WHERE
-					stockAdjustmentItem.stockAdjustment.stockAdjustmentStatusType.systemCode != 'sastClosed'
-				  AND
-					stockAdjustmentItem.fromStock.sku.product.productID = ?
-				GROUP BY
-					stockAdjustmentItem.fromStock.sku.skuID,
-					stockAdjustmentItem.fromStock.stockID,
-					stockAdjustmentItem.fromStock.location.locationID";
+			var QDOSA = getQDOSA(productID=arguments.productID);
+			var QDOSAHashMap = {};
+			for(var i=1;i <= arrayLen(QDOSA);i++){
+				QDOSAHashMap["#QDOSA[i]['skuID']#"] = QDOSA[i]; 
+			}
 			
+			var QOSA = getQOSA(productID=arguments.productID,direction='from');
+			for(var QOSAData in QOSA){
+				var record = {};
+				record['skuID'] = QOSAData['skuID'];
+				if(structKeyExists(QOSAData,'stockID')){
+					record['stockID'] = QOSAData['stockID'];
+				}else{
+					record['stockID'] = javacast('null','');
+				}
+				if(structKeyExists(QOSAData,'locationID')){
+					record['locationID'] = QOSAData['locationID'];
+				}else{
+					record['locationID'] = javacast('null','');
+				}
+				if(structKeyExists(QOSAData,'locationIDPath')){
+					record['locationIDPath'] = QOSAData['locationIDPath'];	
+				}else{
+					record['locationIDPath'] = javacast('null','');
+				}
+				
+				var quantityReceived = 0;
+				if(structKeyExists(QDOSAHashMap,'#QOSAData['skuID']#')){
+					quantityReceived = QDOSAHashMap['#QOSAData['skuID']#']['QDOSA'];
+				}
+				record['QNDOSA'] = QOSAData['QOSA'] - quantityReceived;
+				arrayAppend(QNDOSA,record);
+			}
+			
+			return QNDOSA;
+		}
+		//Quantity Received on return order
+		public array function getQRORO(required string productID, string productRemoteID){
+			var params = {productID=arguments.productID};			
+			var hql = "SELECT NEW MAP(
+							coalesce( sum(stockReceiverItem.quantity), 0 ) as QRORO, 
+							orderItem.sku.skuID as skuID, 
+							stock.stockID as stockID, 
+							location.locationID as locationID, 
+							location.locationIDPath as locationIDPath)
+						FROM
+							SlatwallOrderItem orderItem
+						  LEFT JOIN
+					  		orderItem.stockReceiverItems stockReceiverItem
+					  	  LEFT JOIN
+					  	  	orderItem.stock stock
+					  	  LEFT JOIN
+					  	  	stock.location location
+						WHERE
+							orderItem.order.orderStatusType.systemCode NOT IN ('ostNotPlaced','ostClosed','ostCanceled')
+						  AND
+						  	orderItem.orderItemType.systemCode = 'oitReturn'
+						  AND
+							orderItem.sku.product.productID = :productID
+						GROUP BY
+							orderItem.sku.skuID,
+							stock.stockID,
+							location.locationID,
+							location.locationIDPath";
 			return ormExecuteQuery(hql, params);
+		}
+		//Quantity on return order
+		public array function getQORO(required string productID, string productRemoteID){
+			var params = { productID=arguments.productID };
+			var orderItemQuantityHQL = "SELECT New Map(COALESCE(sum(orderItem.quantity),0) as QORO,
+										orderItem.sku.skuID as skuID, 
+										stock.stockID as stockID, 
+										location.locationID as locationID, 
+										location.locationIDPath as locationIDPath)
+									FROM SlatwallOrderItem orderItem
+									LEFT JOIN
+								  	  	orderItem.stock stock
+								  	  LEFT JOIN
+								  	  	stock.location location
+									WHERE
+										orderItem.order.orderStatusType.systemCode NOT IN ('ostNotPlaced','ostClosed','ostCanceled')
+					 				 AND
+					  					orderItem.orderItemType.systemCode = 'oitReturn'
+					  				 AND
+										orderItem.sku.product.productID = :productID
+									GROUP BY
+									orderItem.sku.skuID,
+									stock.stockID,
+									location.locationID,
+									location.locationIDPath
+									";
+			
+			return ORMExecuteQuery(orderItemQuantityHQL,params);
 		}
 		
 		// Quantity not received on return order
 		public array function getQNRORO(required string productID, string productRemoteID) {
+			var QNRORO = [];
 			
-			var params = [ arguments.productID ];
-			var hql = "SELECT NEW MAP(coalesce( sum(orderItem.quantity), 0 ) - coalesce( sum(stockReceiverItem.quantity), 0 ) as QNRORO, orderItem.sku.skuID as skuID, stock.stockID as stockID, stock.location.locationID as locationID)
-					FROM
-						SlatwallOrderItem orderItem
-					  LEFT JOIN
-				  		orderItem.stockReceiverItems stockReceiverItem
-				  	  LEFT JOIN
-				  	  	orderItem.stock stock
-					WHERE
-						orderItem.order.orderStatusType.systemCode != 'ostNotPlaced'
-					  AND
-					    orderItem.order.orderStatusType.systemCode != 'ostClosed'
-					  AND
-					  	orderItem.orderItemStatusType.systemCode = 'oitReturn'
-					  AND
-						orderItem.sku.product.productID = ?
-					GROUP BY
-						orderItem.sku.skuID,
-						stock.stockID,
-						stock.location.locationID";
+			var QRORO = getQRORO(productID=arguments.productID);
+			var QROROHashMap = {};
+			for(var i=1;i <= arrayLen(QRORO);i++){
+				QROROHashMap["#QRORO[i]['skuID']#"] = QRORO[i]; 
+			}
+			
+			var QORO = getQORO(productID=arguments.productID);
+			for(var QOROData in QORO){
+				var record = {};
+				record['skuID'] = QOROData['skuID'];
+				if(structKeyExists(QOROData,'stockID')){
+					record['stockID'] = QOROData['stockID'];
+				}else{
+					record['stockID'] = javacast('null','');
+				}
+				if(structKeyExists(QOROData,'locationID')){
+					record['locationID'] = QOROData['locationID'];
+				}else{
+					record['locationID'] = javacast('null','');
+				}
+				if(structKeyExists(QOROData,'locationIDPath')){
+					record['locationIDPath'] = QOROData['locationIDPath'];
+				}else{
+					record['locationIDPath'] = javacast('null','');
+				}
+				var quantityReceived = 0;
+				if(structKeyExists(QROROHashMap,'#QOROData['skuID']#')){
+					quantityReceived = QROROHashMap['#QOROData['skuID']#']['QRORO'];
+				}
+				record['QNRORO'] = QOROData['QORO'] - quantityReceived;
+				arrayAppend(QNRORO,record);
+			}
+			
+			return QNRORO;
+		}
+		
+		public array function getQDORVO(required string productID, string productRemoteID){
+			var hql = "SELECT NEW MAP(
+							coalesce( sum(vendorOrderDeliveryItem.quantity), 0 ) as QDORVO, 
+							sku.skuID as skuID, 
+							stock.stockID as stockID, 
+							location.locationID as locationID,
+							location.locationIDPath as locationIDPath)
+						FROM
+							SlatwallVendorOrderItem vendorOrderItem
+						  LEFT JOIN
+					  		vendorOrderItem.vendorOrderDeliveryItems vendorOrderDeliveryItem
+					  	  LEFT JOIN
+					  	  	vendorOrderItem.stock stock
+					  	  LEFT JOIN
+					  	  	stock.sku sku
+					  	  LEFT JOIN 
+					  	  	stock.location location
+						WHERE
+							vendorOrderItem.vendorOrder.vendorOrderStatusType.systemCode NOT IN ('vostPartiallyReceived','vostNew')
+						  AND
+						  	vendorOrderItem.vendorOrder.vendorOrderType = 'votReturn'
+						  AND 
+							vendorOrderItem.stock.sku.product.productID = :productID
+						GROUP BY
+							sku.skuID,
+							stock.stockID,
+							location.locationID,
+							location.locationIDPath";
+			var QDORVO = ormExecuteQuery(hql, {productID=arguments.productID});	
+			return QDORVO;
+		}
+		
+		public array function getQORVO(required string productID, string productRemoteID){
+			var params = { productID = arguments.productID };
+			var hql = "
+						SELECT NEW MAP(
+							COALESCE(sum(vendorOrderItem.quantity),0) as QORVO,
+							sku.skuID as skuID, 
+							stock.stockID as stockID,
+							location.locationID as locationID,
+							location.locationIDPath as locationIDPath
+						)
+						FROM SlatwallVendorOrderItem vendorOrderItem
+					  	  LEFT JOIN
+					  	  	vendorOrderItem.stock stock
+					  	  LEFT JOIN
+					  	  	stock.sku sku
+					  	  LEFT JOIN 
+					  	  	stock.location location
+					  	  WHERE 
+					  	  		vendorOrderItem.vendorOrder.vendorOrderType.systemCode = 'votReturnOrder'
+					  	  	AND
+					  	  		vendorOrderItem.vendorOrder.vendorOrderStatusType.systemCode NOT IN ('vostClosed','vostPartiallyReceived')
+					  	  	AND
+					  	  		sku.product.productID = :productID
+					  	  GROUP BY
+					  	  	sku.skuID,
+					  	  	stock.stockID,
+					  	  	location.locationID,
+					  	  	location.locationIDPath
+					  	 ";
+			var QORVO = ORMExecuteQuery(hql,params);	
+			return QORVO;
+		}
+		
+		// Quantity not delivered on return vendor order 
+		public array function getQNDORVO(required string productID, string productRemoteID) {
+			// TODO: Impliment this later when we add return vendor orders
+			var QNDORVO = [];
+			
+			var params = { productID = arguments.productID };
+			
+			var QDORVO = getQDORVO(productID=arguments.productID);
+			var QDORVOHashMap = {};
+			for(var i=1;i <= arrayLen(QDORVO);i++){
+				QDORVOHashMap["#QDORVO[i]['skuID']#"] = QDORVO[i]; 
+			}
+			
+			var QORVO = getQORVO(productID=arguments.productID);
+			
+			for(var QORVOData in QORVO){
+				var record = {};
+				record['skuID'] = QORVOData['skuID'];
+				if(structKeyExists(QORVOData,'stockID')){
+					record['stockID'] = QORVOData['stockID'];
+				}else{
+					record['stockID'] = javacast('null','');
+				}
+				if(structKeyExists(QORVOData,'locationID')){
+					record['locationID'] = QORVOData['locationID'];	
+				}else{
+					record['locationID'] = javacast('null','');
+				}
+				if(structKeyExists(QORVOData,'locationIDPath')){
+					record['locationIDPath'] = QORVOData['locationIDPath'];
+				}else{
+					record['locationIDPath'] = javacast('null','');
+				}
+				var quantityDelivered = 0;
+				if(structKeyExists(QDORVOHashMap,'#QORVOData['skuID']#')){
+					quantityDelivered = QDORVOHashMap['#QORVOData['skuID']#']['QDORVO'];
+				}
+				record['QNDORVO'] = QORVOData['QORVO'] - quantityDelivered;
+				arrayAppend(QNDORVO,record);
+			}
+			
+			
+			return QNDORVO;
+		}
+		
+		public array function getQROVO(required string productID, string productRemoteID){
+			
+			var params = {productID=arguments.productID};
+			var hql = "SELECT NEW MAP(
+							coalesce( sum(stockReceiverItem.quantity), 0 ) as QROVO, 
+							stock.sku.skuID as skuID, 
+							stock.stockID as stockID, 
+							location.locationID as locationID, 
+							location.locationIDPath as locationIDPath
+						)
+						FROM
+							SlatwallVendorOrderItem vendorOrderItem
+						  LEFT JOIN
+					  		vendorOrderItem.stockReceiverItems stockReceiverItem
+					  	  LEFT JOIN
+					  	  	vendorOrderItem.stock stock
+					  	  LEFT JOIN
+					  	  	stock.location location
+					  	  LEFT JOIN 
+					  	  	stock.sku sku
+						WHERE
+							vendorOrderItem.vendorOrder.vendorOrderStatusType.systemCode != 'ostClosed'
+						  AND
+						  	vendorOrderItem.vendorOrder.vendorOrderType.systemCode = 'votPurchaseOrder'
+						  AND
+							vendorOrderItem.stock.sku.product.productID = :productID
+						GROUP BY
+							stock.sku.skuID,
+							stock.stockID,
+							location.locationID,
+							location.locationIDPath";
+			
+			return ormExecuteQuery(hql, params);
+		}
+		
+		public array function getQOVO(required string productID, string productRemoteID) {
 				
+			var params = {productID=arguments.productID};
+			var hql = "SELECT NEW MAP(
+							sum(vendorOrderItem.quantity) as QOVO, 
+							stock.sku.skuID as skuID, 
+							stock.stockID as stockID, 
+							location.locationID as locationID, 
+							location.locationIDPath as locationIDPath
+						)
+						FROM
+							SlatwallVendorOrderItem vendorOrderItem
+					  	  LEFT JOIN
+					  	  	vendorOrderItem.stock stock
+					  	  LEFT JOIN
+					  	  	stock.location location
+					  	  LEFT JOIN 
+					  	  	stock.sku sku
+						WHERE
+							vendorOrderItem.vendorOrder.vendorOrderStatusType.systemCode != 'ostClosed'
+						  AND
+						  	vendorOrderItem.vendorOrder.vendorOrderType.systemCode = 'votPurchaseOrder'
+						  AND
+							vendorOrderItem.stock.sku.product.productID = :productID
+						GROUP BY
+							stock.sku.skuID,
+							stock.stockID,
+							location.locationID,
+							location.locationIDPath";
 			return ormExecuteQuery(hql, params);
 		}
 		
 		// Quantity not received on vendor order
 		public array function getQNROVO(required string productID, string productRemoteID) {
+			var QROVO = getQROVO(productID=arguments.productID);
+			var QROVOHashMap = {};
+			for(var i=1;i <= arrayLen(QROVO);i++){
+				var skuKey = QROVO[i]['skuID'];
+				if (!structKeyExists(QROVOHashMap, skuKey)) {
+					QROVOHashMap[skuKey] = [];
+				}
+				
+				arrayAppend(QROVOHashMap[skuKey], QROVO[i]);
+			}
+			var QNROVO = [];
 			
-			var params = [ arguments.productID ];
-			var hql = "SELECT NEW MAP(coalesce( sum(vendorOrderItem.quantity), 0 ) - coalesce( sum(stockReceiverItem.quantity), 0 ) as QNROVO, vendorOrderItem.stock.sku.skuID as skuID, vendorOrderItem.stock.stockID as stockID, vendorOrderItem.stock.location.locationID as locationID)
-					FROM
-						SlatwallVendorOrderItem vendorOrderItem
-					  LEFT JOIN
-				  		vendorOrderItem.stockReceiverItems stockReceiverItem
-					WHERE
-						vendorOrderItem.vendorOrder.vendorOrderStatusType.systemCode != 'ostClosed'
-					  AND
-					  	vendorOrderItem.vendorOrder.vendorOrderType.systemCode = 'votPurchaseOrder'
-					  AND
-						vendorOrderItem.stock.sku.product.productID = ?
-					GROUP BY
-						vendorOrderItem.stock.sku.skuID,
-						vendorOrderItem.stock.stockID,
-						vendorOrderItem.stock.location.locationID";
+			var QOVO = getQOVO(productID=arguments.productID);
+			for(var QOVOData in QOVO){
+				var record = {};
+				record['skuID'] = QOVOData['skuID'];
+				if(structKeyExists(QOVOData,'stockID')){
+					record['stockID'] = QOVOData['stockID'];
+				}else{
+					record['stockID'] = javacast('null','');
+				}
+				if(structKeyExists(QOVOData,'locationID')){
+					record['locationID'] = QOVOData['locationID'];
+				}else{
+					record['locationID'] = javacast('null','');
+				}
+				if(structKeyExists(QOVOData,'locationIDPath')){
+					record['locationIDPath'] = QOVOData['locationIDPath'];
+				}else{
+					record['locationIDPath'] = javacast('null','');
+				}
+				
+				var quantityReceived = 0;
+				if(structKeyExists(QROVOHashMap,record['skuID'])){
+					var selectedQROVOData = QROVOHashMap[record['skuID']][1];
+
+					// Check if we need to match QROVO data record with a specific stockID
+					if (arrayLen(QROVOHashMap[record['skuID']]) > 1) {
+						for (var QROVOData in QROVOHashMap[record['skuID']]) {
+							if (structKeyExists(QROVOData, 'stockID') && QROVOData['stockID'] == record['stockID']) {
+								selectedQROVOData = QROVOData;
+								break;
+							}
+						}
+					}
+
+					quantityReceived = selectedQROVOData['QROVO'];
+				}
+				record['QNROVO'] = QOVOData['QOVO'] - quantityReceived;
+				arrayAppend(QNROVO,record);
+			}
+			return QNROVO;
+		}
+		
+		//Quantity received on stock adjustment
+		
+		public array function getQROSA(required string productID, string productRemoteID) {
+			var params = {productID = arguments.productID };
+			var hql = "SELECT NEW MAP(
+							coalesce( sum(stockReceiverItem.quantity), 0 ) as QROSA, 
+							toStock.sku.skuID as skuID, 
+							toStock.stockID as stockID, 
+							location.locationID as locationID, 
+							location.locationIDPath as locationIDPath)
+						FROM
+							SlatwallStockAdjustmentItem stockAdjustmentItem
+						  LEFT JOIN
+						  	stockAdjustmentItem.stockReceiverItems stockReceiverItem
+						  LEFT JOIN
+						  	stockAdjustmentItem.toStock toStock
+						  LEFT JOIN
+						  	toStock.location location
+						WHERE
+							stockAdjustmentItem.stockAdjustment.stockAdjustmentStatusType.systemCode != 'sastClosed'
+						  AND 
+							toStock.sku.product.productID = :productID
+						GROUP BY
+							toStock.sku.skuID,
+							toStock.stockID,
+							location.locationID,
+							location.locationIDPath";
 			
 			return ormExecuteQuery(hql, params);
 		}
@@ -182,22 +718,42 @@ Notes:
 		// Quantity not received on stock adjustment
 		public array function getQNROSA(required string productID, string productRemoteID) {
 			
-			var params = [ arguments.productID ];
-			var hql = "SELECT NEW MAP(coalesce( sum(stockAdjustmentItem.quantity), 0 ) - coalesce( sum(stockReceiverItem.quantity), 0 ) as QNROSA, stockAdjustmentItem.toStock.sku.skuID as skuID, stockAdjustmentItem.toStock.stockID as stockID, stockAdjustmentItem.toStock.location.locationID as locationID)
-				FROM
-					SlatwallStockAdjustmentItem stockAdjustmentItem
-				  LEFT JOIN
-				  	stockAdjustmentItem.stockReceiverItems stockReceiverItem
-				WHERE
-					stockAdjustmentItem.stockAdjustment.stockAdjustmentStatusType.systemCode != 'sastClosed'
-				  AND 
-					stockAdjustmentItem.toStock.sku.product.productID = ?
-				GROUP BY
-					stockAdjustmentItem.toStock.sku.skuID,
-					stockAdjustmentItem.toStock.stockID,
-					stockAdjustmentItem.toStock.location.locationID";
+			var QNROSA = [];
 			
-			return ormExecuteQuery(hql, params);
+			var QROSA = getQROSA(productID=arguments.productID);
+			var QROSAHashMap = {}; 
+			for(var i=1;i <= arrayLen(QROSA);i++){
+				QROSAHashMap["#QROSA[i]['skuID']#"] = QROSA[i]; 
+			}
+			
+			var QOSA = getQOSA(productID=arguments.productID,direction='to');
+			for(var QOSAData in QOSA){
+				var record = {};
+				record['skuID'] = QOSAData['skuID'];
+				if(structKeyExists(QOSAData,'stockID')){
+					record['stockID'] = QOSAData['stockID'];
+				}else{
+					record['stockID'] = javacast('null','');
+				}
+				if(structKeyExists(QOSAData,'locationID')){
+					record['locationID'] = QOSAData['locationID'];
+				}else{
+					record['locationID'] = javacast('null','');
+				}
+				if(structKeyExists(QOSAData,'locationIDPath')){
+					record['locationIDPath'] = QOSAData['locationIDPath'];					
+				}else{
+					record['locationIDPath'] = javacast('null','');
+				}
+				var quantityReceived = 0;
+				if(structKeyExists(QROSAHashMap,'#QOSAData['skuID']#')){
+					quantityReceived = QROSAHashMap['#QOSAData['skuID']#']['QROSA'];
+				}
+				record['QNROSA'] = QOSAData['QOSA'] - quantityReceived;
+				arrayAppend(QNROSA,record);
+			}
+			
+			return QNROSA;
 		}
 		
 		// Quantity received
@@ -209,7 +765,59 @@ Notes:
 		public numeric function getQS(string stockID, string skuID, string productID, string stockRemoteID, string skuRemoteID, string productRemoteID) {
 			return 0;
 		}
+
+		public any function getSkuLocationQuantityBySkuIDAndLocationID( required string skuID, locationID){
+			var result = ormExecuteQuery( "SELECT sli FROM SlatwallSkuLocationQuantity sli INNER JOIN sli.sku ss INNER JOIN sli.location ll WHERE ss.skuID = :skuID AND ll.locationID = :locationID", {skuID=arguments.skuID, locationID=arguments.locationID}, true ); 
+
+			if (isNull(result)) {
+				return new('SkuLocationQuantity');
+			}
+
+			return result;
+		}
+		
+		//Quantity Delivered on Order for Sku in Period
+		public any function getSkuOrderQuantityForPeriod(required string skuID, required any fromDateTime, required any toDateTime){
+			var hql = "SELECT NEW MAP(
+						coalesce( sum(orderDeliveryItem.quantity), 0 ) as quantity
+					)
+					FROM SlatwallOrderItem orderItem
+					  	LEFT JOIN orderItem.orderDeliveryItems orderDeliveryItem
+				  	  	LEFT JOIN orderItem.sku sku
+					WHERE sku.skuID = :skuID
+						AND orderItem.order.orderStatusType.systemCode IN ('ostClosed','ostProcessing')
+						AND orderItem.order.orderCloseDateTime BETWEEN :fromDateTime AND :toDateTime
+						AND orderItem.orderItemType.systemCode = 'oitSale'";
+
+			return ormExecuteQuery(hql, {skuID=arguments.skuID,fromDateTime=arguments.fromDateTime,toDateTime=arguments.toDateTime}, true);
+		}
+
 	</cfscript>
+	
+	<cffunction name="getQOQ">
+		<cfargument type="string" required="true" name="skuID" />
+		<cfargument type="string" name="locationID" />
+		<cfset local.locationIDExists = structKeyExists(arguments,'locationID') AND NOT isNull(arguments.locationID) AND len(arguments.locationID) />
+		<cfquery name="local.query">
+			SELECT COALESCE( SUM(oi.quantity) ,0) as QOQ FROM swOrderItem oi
+			LEFT JOIN swOrder o 
+			ON oi.orderID = o.orderID
+			<cfif locationIDExists >
+				LEFT JOIN swStock st ON st.skuID = oi.skuID
+				LEFT JOIN swLocation l on st.locationID = l.locationID
+			</cfif>
+			WHERE
+				o.QuoteFlag = 1
+			AND
+				o.quotePriceExpiration > NOW()
+			AND
+				oi.skuID = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.skuID#" />
+			<cfif locationIDExists>
+				AND l.locationID = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.locationID#" />
+			</cfif>
+		</cfquery>
+		
+		<cfreturn local.query.qoq />
+	</cffunction>
 
 </cfcomponent>
-

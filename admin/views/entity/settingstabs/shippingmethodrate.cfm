@@ -46,12 +46,18 @@
 Notes:
 
 --->
-<cfoutput>
-	<cf_SlatwallSettingTable showInheritance="false">
-		<cf_SlatwallSetting settingName="shippingMethodRateAdjustmentType" />
-		<cf_SlatwallSetting settingName="shippingMethodRateAdjustmentAmount" />
-		<cf_SlatwallSetting settingName="shippingMethodRateMinimumAmount" />
-		<cf_SlatwallSetting settingName="shippingMethodRateMaximumAmount" />
-	</cf_SlatwallSettingTable>
-</cfoutput>
+<cfimport prefix="swa" taglib="../../../../tags" />
+<cfimport prefix="hb" taglib="../../../../org/Hibachi/HibachiTags" />
 
+<cfoutput>
+	<swa:SlatwallSettingTable showInheritance="false">
+		<swa:SlatwallSetting settingName="shippingMethodRateAdjustmentType" />
+		<swa:SlatwallSetting settingName="shippingMethodRateAdjustmentAmount" />
+		<swa:SlatwallSetting settingName="shippingMethodRateMinimumAmount" />
+		<swa:SlatwallSetting settingName="shippingMethodRateMaximumAmount" />
+	    <swa:SlatwallSetting settingName="shippingMethodRateHandlingFeeFlag" />
+		<swa:SlatwallSetting settingName="shippingMethodRateHandlingFeeType" />
+		<swa:SlatwallSetting settingName="shippingMethodRateHandlingFeeAmount" />
+		<swa:SlatwallSetting settingName="shippingMethodRateHandlingFeePercentage" />
+	</swa:SlatwallSettingTable>
+</cfoutput>

@@ -46,8 +46,13 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../tags" />
+<cfimport prefix="hb" taglib="../../../org/Hibachi/HibachiTags" />
+
+
 <cfparam name="rc.promotionQualifier" type="any">
 <cfparam name="rc.promotionPeriod" type="any" default="#rc.promotionQualifier.getPromotionPeriod()#" />
+<cfparam name="rc.promotion" type="any" default="#rc.promotionPeriod.getPromotion()#">
 <cfparam name="rc.qualifierType" type="string" default="#rc.promotionQualifier.getQualifierType()#" />
 <cfparam name="rc.edit" type="boolean">
 
@@ -56,12 +61,16 @@ Notes:
 	<cfset rc.edit = false />
 	<cfset arrayAppend(rc.messages,{message=rc.$.slatwall.rbKey('admin.pricing.promotionqualifier.edit_disabled'),messageType="info"}) />
 </cfif>
-
+<!--- prevent editing promotion qualifier if it is past the startDateTime for this promotion or the startTime is forever then this can not be edited. --->
+<cfif rc.edit and rc.promotionPeriod.getCurrentFlag() and rc.promotion.getPromotionAppliedOrdersCount() gt 0>
+	<cfset rc.edit = false>
+	<cfset rc.$.slatwall.showMessageKey('admin.pricing.promotionperiod_inprogress.editdisabled_info') />
+</cfif>
 <cfset local.qualifierType = rc.promotionQualifier.getQualifierType() />
 
 <cfoutput>
-	<cf_HibachiEntityDetailForm object="#rc.promotionQualifier#" edit="#rc.edit#">
-		<cf_HibachiEntityActionBar type="detail" object="#rc.promotionQualifier#" edit="#rc.edit#" 
+	<hb:HibachiEntityDetailForm object="#rc.promotionQualifier#" edit="#rc.edit#">
+		<hb:HibachiEntityActionBar type="detail" object="#rc.promotionQualifier#" edit="#rc.edit#" 
 							  cancelAction="admin:entity.detailpromotionqualifier"
 							  cancelQueryString="promotionQualifierID=#rc.promotionQualifier.getPromotionQualifierID()#" 
 							  backAction="admin:entity.detailpromotionperiod" 
@@ -73,41 +82,22 @@ Notes:
 		<input type="hidden" name="promotionPeriod.promotionPeriodID" value="#rc.promotionperiod.getPromotionperiodID()#" />
 		<input type="hidden" name="promotionPeriodID" value="#rc.promotionperiod.getPromotionperiodID()#" />
 		
-		<cf_HibachiPropertyRow>
-			<cf_HibachiPropertyList>
-				<cfif listFindNoCase("merchandise,subscription,contentaccess", rc.qualifierType)>
-					<cf_HibachiPropertyDisplay object="#rc.promotionQualifier#" property="minimumItemQuantity" edit="#rc.edit#" />
-					<cf_HibachiPropertyDisplay object="#rc.promotionQualifier#" property="maximumItemQuantity" edit="#rc.edit#" />
-					<cf_HibachiPropertyDisplay object="#rc.promotionQualifier#" property="minimumItemPrice" edit="#rc.edit#" />
-					<cf_HibachiPropertyDisplay object="#rc.promotionQualifier#" property="maximumItemPrice" edit="#rc.edit#" />
-					<cf_HibachiPropertyDisplay object="#rc.promotionQualifier#" property="rewardMatchingType" edit="#rc.edit#" />
-				<cfelseif rc.qualifierType eq "fulfillment">
-					<cf_HibachiPropertyDisplay object="#rc.promotionQualifier#" property="minimumFulfillmentWeight" edit="#rc.edit#" />
-					<cf_HibachiPropertyDisplay object="#rc.promotionQualifier#" property="maximumFulfillmentWeight" edit="#rc.edit#" />
-				<cfelseif rc.qualifierType eq "order">
-					<cf_HibachiPropertyDisplay object="#rc.promotionQualifier#" property="minimumOrderQuantity" edit="#rc.edit#" />
-					<cf_HibachiPropertyDisplay object="#rc.promotionQualifier#" property="maximumOrderQuantity" edit="#rc.edit#" />
-					<cf_HibachiPropertyDisplay object="#rc.promotionQualifier#" property="minimumOrderSubtotal" edit="#rc.edit#" />
-					<cf_HibachiPropertyDisplay object="#rc.promotionQualifier#" property="maximumOrderSubtotal" edit="#rc.edit#" />
-				</cfif>
-			</cf_HibachiPropertyList>
-		</cf_HibachiPropertyRow>
-		
-		<cf_HibachiTabGroup object="#rc.promotionQualifier#">
+		<hb:HibachiEntityDetailGroup object="#rc.promotionQualifier#">
+			<hb:HibachiEntityDetailItem view="admin:entity/promotionqualifiertabs/basic" open="true" text="#$.slatwall.rbKey('admin.define.basic')#" showOnCreateFlag=true />
 			<cfif listFindNoCase("merchandise,subscription,contentaccess", rc.qualifierType)>
-				<cf_HibachiTab view="admin:entity/promotionqualifiertabs/producttypes" />
-				<cf_HibachiTab view="admin:entity/promotionqualifiertabs/products" />
-				<cf_HibachiTab view="admin:entity/promotionqualifiertabs/skus" />
-				<cf_HibachiTab view="admin:entity/promotionqualifiertabs/brands" />
+				<hb:HibachiEntityDetailItem view="admin:entity/promotionqualifiertabs/producttypes" />
+				<hb:HibachiEntityDetailItem view="admin:entity/promotionqualifiertabs/products" />
+				<hb:HibachiEntityDetailItem view="admin:entity/promotionqualifiertabs/skus" />
+				<hb:HibachiEntityDetailItem view="admin:entity/promotionqualifiertabs/brands" />
 				<cfif rc.qualifierType eq "merchandise">
-					<cf_HibachiTab view="admin:entity/promotionqualifiertabs/options" />
+					<hb:HibachiEntityDetailItem view="admin:entity/promotionqualifiertabs/options" />
 				</cfif>
 			<cfelseif rc.qualifierType eq "fulfillment">
-				<cf_HibachiTab view="admin:entity/promotionqualifiertabs/fulfillmentMethods" />
-				<cf_HibachiTab view="admin:entity/promotionqualifiertabs/shippingMethods" />
-				<cf_HibachiTab view="admin:entity/promotionqualifiertabs/shippingAddressZones" />
+				<hb:HibachiEntityDetailItem view="admin:entity/promotionqualifiertabs/fulfillmentmethods" />
+				<hb:HibachiEntityDetailItem view="admin:entity/promotionqualifiertabs/shippingmethods" />
+				<hb:HibachiEntityDetailItem view="admin:entity/promotionqualifiertabs/shippingaddresszones" />
 			</cfif>
-		</cf_HibachiTabGroup>
+		</hb:HibachiEntityDetailGroup>
 		
-	</cf_HibachiEntityDetailForm>
+	</hb:HibachiEntityDetailForm>
 </cfoutput>

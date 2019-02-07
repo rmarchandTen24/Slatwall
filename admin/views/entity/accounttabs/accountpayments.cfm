@@ -46,21 +46,36 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../../tags" />
+<cfimport prefix="hb" taglib="../../../../org/Hibachi/HibachiTags" />
+
+
 <cfparam name="rc.account" type="any" />
 
 <cfoutput>
-	<cf_HibachiListingDisplay smartList="#rc.account.getAccountPaymentsSmartList()#"
-							   recordDetailAction="admin:entity.detailaccountpayment"
-							   recordEditAction="admin:entity.editaccountpayment">
+	<cfset accountPaymentSL = rc.account.getAccountPaymentsSmartList()/>
+	<cfset accountPaymentSL.setSelectDistinctFlag(1)/>
+	<cfset accountPaymentSL.addFilter('paymentTransactions.transactionSuccessFlag','1')/>
+	
+	<cfset accountPaymentCollectionlist = rc.account.getAccountPaymentsCollectionList()/>
+	<cfset accountPaymentCollectionlist.addFilter("paymentTransactions.transactionSuccessFlag","1")/>
+	<cfset accountPaymentCollectionlist.setDisplayProperties('paymentMethod.paymentMethodName,accountPaymentType.typeName,amount,amountReceived,amountCredited',{
+		isVisible=true,
+		isSearchable=true,
+		isDeletable=true
+	})/>
+	<cfset accountPaymentCollectionlist.addDisplayProperty(displayProperty='accountPaymentID',columnConfig={
+		isVisible=false,
+		isSearchable=false,
+		isDeletable=false
+	})/>
+	
+	<hb:HibachiListingDisplay 
+		collectionList="#accountPaymentCollectionlist#"
+		recordEditAction="admin:entity.editaccountpayment"
+		recordDetailAction="admin:entity.detailaccountpayment"
+	>
+	</hb:HibachiListingDisplay>
 
-		<cf_HibachiListingColumn tdclass="primary" propertyIdentifier="paymentMethod.paymentMethodName" />
-		<cf_HibachiListingColumn propertyIdentifier="accountPaymentType.type" />
-		<cf_HibachiListingColumn propertyIdentifier="amount" />
-		<cf_HibachiListingColumn propertyIdentifier="amountReceived" />
-		<cf_HibachiListingColumn propertyIdentifier="amountCredited" />
-
-	</cf_HibachiListingDisplay>
-
-
-	<cf_HibachiProcessCaller action="admin:entity.preprocessaccount" entity="#rc.account#" processContext="addAccountPayment" class="btn" icon="plus" />
+	<hb:HibachiProcessCaller action="admin:entity.preprocessaccount" entity="#rc.account#" processContext="addAccountPayment" class="btn btn-default" icon="plus" />
 </cfoutput>

@@ -46,11 +46,11 @@
 Notes:
 
 */
-component entityname="SlatwallPrint" table="SwPrint" persistent="true" accessors="true" extends="HibachiEntity" cacheuse="transactional" hb_serviceName="printService" hb_permission="this" {
+component entityname="SlatwallPrint" table="SwPrint" persistent="true" accessors="true" extends="HibachiEntity" cacheuse="transactional" hb_serviceName="printService" hb_permission="this" hb_processContext="addToQueue" {
 	
 	// Persistent Properties
 	property name="printID" ormtype="string" length="32" fieldtype="id" generator="uuid" unsavedvalue="" default="";
-	property name="printContent" ormtype="string";
+	property name="printContent" ormtype="string" length="8000" hb_populateEnabled="public";
 	
 	// Related Object Properties (many-to-one)
 	
@@ -70,7 +70,7 @@ component entityname="SlatwallPrint" table="SwPrint" persistent="true" accessors
 	
 	// ============ START: Non-Persistent Property Methods =================
 	public boolean function getLogPrintFlag() {
-		if(!structKeyExists(variables, "logPrintFlag")) {
+		if(!this.getNewFlag() && !structKeyExists(variables, "logPrintFlag")) {
 			variables.logPrintFlag = false;
 		}
 		return variables.logPrintFlag;

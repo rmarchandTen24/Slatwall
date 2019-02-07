@@ -54,6 +54,7 @@ component entityname="SlatwallSubscriptionTerm" table="SwSubscriptionTerm" persi
 	property name="allowProrateFlag" ormtype="boolean" hb_formatType="yesno";
 	property name="autoRenewFlag" ormtype="boolean" hb_formatType="yesno";
 	property name="autoPayFlag" ormtype="boolean" hb_formatType="yesno";
+	property name="itemsToDeliver" ormtype="integer";
 	
 	// Related Object Properties (many-to-one)
 	property name="initialTerm" cfc="Term" fieldtype="many-to-one" fkcolumn="initialTermID";
@@ -76,8 +77,6 @@ component entityname="SlatwallSubscriptionTerm" table="SwSubscriptionTerm" persi
 	
 	// Non-Persistent Properties
 
-
-
 	// ============ START: Non-Persistent Property Methods =================
 	
 	// ============  END:  Non-Persistent Property Methods =================
@@ -91,14 +90,17 @@ component entityname="SlatwallSubscriptionTerm" table="SwSubscriptionTerm" persi
 	public void function removeSku(required any sku) {
 		arguments.sku.removeSubscriptionTerm( this );
 	}
-
-	// =============  END:  Bidirectional Helper Methods ===================
+	
+	// =============  END:  Bidirectional Helper Methods =======================
 
 	// ================== START: Overridden Methods ========================
 	
 	// ==================  END:  Overridden Methods ========================
 	
-	// =================== START: ORM Event Hooks  =========================
+	// =================== START: ORM Event Hooks  ========================
 	
 	// ===================  END:  ORM Event Hooks  =========================
+	
+	
+	
 }

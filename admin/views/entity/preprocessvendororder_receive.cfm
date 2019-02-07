@@ -46,33 +46,45 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../tags" />
+<cfimport prefix="hb" taglib="../../../org/Hibachi/HibachiTags" />
+
+
 <cfparam name="rc.vendorOrder" type="any" />
 <cfparam name="rc.processObject" type="any" />
 <cfparam name="rc.edit" type="boolean" />
 
 <cfoutput>
-	<cf_HibachiEntityProcessForm entity="#rc.vendorOrder#" edit="#rc.edit#">
+	<hb:HibachiEntityProcessForm entity="#rc.vendorOrder#" edit="#rc.edit#">
 		
-		<cf_HibachiEntityActionBar type="preprocess" object="#rc.vendorOrder#">
-		</cf_HibachiEntityActionBar>
+		<hb:HibachiEntityActionBar type="preprocess" object="#rc.vendorOrder#">
+		</hb:HibachiEntityActionBar>
 		
-		<cf_HibachiPropertyRow>
-			<cf_HibachiPropertyList>
-				<cf_HibachiPropertyDisplay object="#rc.processObject#" property="packingSlipNumber" edit="#rc.edit#">
-				<cf_HibachiPropertyDisplay object="#rc.processObject#" property="boxCount" edit="#rc.edit#">
-				<cf_HibachiPropertyDisplay object="#rc.processObject#" property="locationID" edit="#rc.edit#">
-			</cf_HibachiPropertyList>
-		</cf_HibachiPropertyRow>
+		<hb:HibachiPropertyRow>
+			<hb:HibachiPropertyList>
+				<hb:HibachiPropertyDisplay object="#rc.processObject#" property="packingSlipNumber" edit="#rc.edit#">
+				<hb:HibachiPropertyDisplay object="#rc.processObject#" property="boxCount" edit="#rc.edit#">
+				<hb:HibachiPropertyDisplay object="#rc.processObject#" property="locationID" edit="#rc.edit#" value="#rc.vendorOrder.getBillToLocation().getLocationID()#">
+				<hb:HibachiPropertyDisplay fieldName="vendorOrder.shippingAndHandlingCost" object="#rc.processObject.getVendorOrder()#"  property="shippingAndHandlingCost" edit="#rc.edit#">
+					<hb:HibachiPropertyDisplay fieldName="vendorOrder.costDistributionType" object="#rc.processObject.getVendorOrder()#" property="costDistributionType" edit="#rc.edit#">
+			</hb:HibachiPropertyList>
+		</hb:HibachiPropertyRow>
 		
 		<hr />
-				
+		<div class="alert alert-warning">
+			<i class="fa fa-info-circle"></i> Once received, Vendor Order Items are finalized. Please verify that all information is accurate before continuing.
+		</div>		
 		<!--- Items Selector --->
-		<table class="table table-striped table-bordered table-condensed">
+		<table class="table table-bordered table-hover">
 			<tr>
 				<th>#$.slatwall.rbKey('entity.brand')#</th>
 				<th class="primary">#$.slatwall.rbKey('entity.product.productName')#</th>
 				<th>#$.slatwall.rbKey('entity.sku.skuCode')#</th>
 				<th>#$.slatwall.rbKey('entity.location.locationName')#</th>
+				<th>#$.slatwall.rbKey('entity.sku.weight')#</th>
+				<th>#$.slatwall.rbKey('entity.vendorOrderItem.cost')#</th>
+				<th>#$.slatwall.rbKey('entity.vendorOrderItem.extendedCost')#</th>
+				<th>#$.slatwall.rbKey('entity.vendorOrderItem.extendedWeight')#</th>
 				<th>#$.slatwall.rbKey('entity.vendorOrderItem.quantity')#</th>
 				<th>#$.slatwall.rbKey('entity.vendorOrderItem.quantityReceived')#</th>
 				<th>#$.slatwall.rbKey('entity.vendorOrderItem.quantityUnreceived')#</th>
@@ -90,13 +102,18 @@ Notes:
 					<td>#vendorOrderItem.getStock().getSku().getProduct().getProductName()#</td>
 					<td>#vendorOrderItem.getStock().getSku().getSkuCode()#</td>
 					<td>#vendorOrderItem.getStock().getLocation().getLocationName()#</td>
+					<td>#vendorOrderItem.getStock().getSku().getWeight()#</td>
+					<td>#vendorOrderItem.getCost()#</td>
+					<td>#vendorOrderItem.getExtendedCost()#</td>
+					<td>#vendorOrderItem.getExtendedWeight()#</td>
 					<td>#vendorOrderItem.getQuantity()#</td>
 					<td>#vendorOrderItem.getQuantityReceived()#</td>
 					<td>#vendorOrderItem.getQuantityUnreceived()#</td>
+					
 					<td><input type="text" name="vendorOrderItems[#vendorOrderItemIndex#].quantity" value="" class="span1" /></td>
 				</tr>
 			</cfloop>
 		</table>
 		
-	</cf_HibachiEntityProcessForm>
+	</hb:HibachiEntityProcessForm>
 </cfoutput>

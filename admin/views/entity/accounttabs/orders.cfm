@@ -46,17 +46,41 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../../tags" />
+<cfimport prefix="hb" taglib="../../../../org/Hibachi/HibachiTags" />
+
+
 <cfparam name="rc.account" type="any" />
 <cfparam name="rc.ordersPlacedSmartList" type="any" />
+<cfparam name="rc.ordersPlacedCollectionList" type="any" />
 
-<cf_HibachiListingDisplay smartList="#rc.ordersPlacedSmartList#"
-						  recordDetailAction="admin:entity.detailorder"
-						  recordEditAction="admin:entity.editorder">
+<cfset displayPropertyList = 'orderNumber,orderOpenDateTime'/>
+<cfset rc.ordersPlacedCollectionList.setDisplayProperties(
+	displayPropertyList,
+	{
+		isVisible=true,
+		isSearchable=true,
+		isDeletable=true
+	}
+)/>
 
-	<cf_HibachiListingColumn propertyIdentifier="orderNumber" />
-	<cf_HibachiListingColumn propertyIdentifier="orderOpenDateTime" />
-	<cf_HibachiListingColumn tdclass="primary" propertyIdentifier="account.fullName" />
-	<cf_HibachiListingColumn propertyIdentifier="orderStatusType.type" />
-	<cf_HibachiListingColumn propertyIdentifier="calculatedTotal" />
-</cf_HibachiListingDisplay>
-<cf_HibachiActionCaller action="admin:entity.preprocessorder" entity="order" class="btn" icon="plus" querystring="sRedirectAction=admin:entity.detailaccount&accountID=#rc.account.getAccountID()#&processcontext=create&newAccountFlag=false" modal=true disabled="#disabled#" disabledText="#disabledText#" />
+<cfset rc.ordersPlacedCollectionList.addDisplayProperty(displayProperty='orderType.typeName', title="Order Type", columnConfig={isVisible=true, isSearchable=true, isDeletable=true})/>
+<cfset rc.ordersPlacedCollectionList.addDisplayProperty(displayProperty='orderStatusType.typeName', title="Order Status", columnConfig={isVisible=true, isSearchable=true, isDeletable=true})/>
+<cfset rc.ordersPlacedCollectionList.addDisplayProperty(displayProperty='createdDateTime', columnConfig={isVisible=true, isSearchable=true, isDeletable=true})/>
+<cfset rc.ordersPlacedCollectionList.addDisplayProperty(displayProperty='calculatedTotal', columnConfig={isVisible=true, isSearchable=true, isDeletable=true})/>
+
+<cfset rc.ordersPlacedCollectionList.addDisplayProperty(displayProperty='orderID',columnConfig={
+	isVisible=false,
+	isSearchable=false,
+	isDeletable=false
+	})
+/>
+
+<hb:HibachiListingDisplay
+	collectionList="#rc.ordersPlacedCollectionList#"
+	recordEditAction="admin:entity.editorder"
+	recordDetailAction="admin:entity.detailorder"
+	usingPersonalCollection="false"
+>
+</hb:HibachiListingDisplay>
+<hb:HibachiActionCaller action="admin:entity.preprocessorder" entity="order" class="btn btn-default" icon="plus" querystring="sRedirectAction=admin:entity.detailaccount&accountID=#rc.account.getAccountID()#&processcontext=create&newAccountFlag=false" modal=true />

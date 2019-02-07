@@ -46,11 +46,14 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../../tags" />
+<cfimport prefix="hb" taglib="../../../../org/Hibachi/HibachiTags" />
+
 <cfparam name="rc.physical" type="any" />
 <cfset discrepancyQuery = rc.physical.getDiscrepancyQuery() />
 
 <cfoutput>
-	<table class="table table-striped table-bordered table-condensed table-hover">
+	<table class="table table-bordered table-hover">
 		<thead>
 		<tr>
 			<th style="white-space:normal; vertical-align: text-bottom;">#$.slatwall.rbKey("entity.sku.skuCode")#</th>
@@ -81,6 +84,7 @@ Notes:
 			</tr>
 		</cfif>
 		</tbody>
-	</table>	
+	</table>
+	<hb:HibachiActionCaller action="admin:entity.exportPhysical" queryString="physicalID=#rc.physical.getPhysicalID()#" type="link" class="btn btn-default" icon="export" modal="false" />
 </cfoutput>
 

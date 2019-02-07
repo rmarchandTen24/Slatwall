@@ -46,6 +46,8 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../tags" />
+<cfimport prefix="hb" taglib="../../../org/Hibachi/HibachiTags" />
 <html>
 <head>
 	<cfoutput><script type="text/javascript" src="#request.slatwallScope.getBaseURL()#/org/Hibachi/HibachiAssets/js/jquery-1.7.1.min.js"></script></cfoutput>
@@ -62,21 +64,26 @@ Notes:
 	
 </head>
 <body>
-<cfif arrayLen($.slatwall.getPrintQueue())>
-<cfloop from="1" to="#arrayLen($.slatwall.getPrintQueue())#" index="i">
-<div style="<cfif i gt 1>page-break-before: always;</cfif>">
-<cfoutput>#$.slatwall.getPrintQueue()[i].getPrintContent()#</cfoutput>
-</div>
-<cfsilent>
-<cfif $.slatwall.getPrintQueue()[i].getLogPrintFlag()>
-<cfset entityMerge($.slatwall.getPrintQueue()[i]) />
-<cfset entitySave($.slatwall.getPrintQueue()[i]) />
-</cfif>
-</cfsilent>
-</cfloop>
+<cfif listLen($.slatwall.getPrintQueue())>
+	<cfloop list="#listLen($.slatwall.getPrintQueue())#" index="i">
+		<cfset printEntity = $.slatwall.getService('printService').getPrint(listgetAT($.slatwall.getPrintQueue(),i))/>
+		<cfif !isNull(printEntity)>
+			<div style="<cfif i gt 1>page-break-before: always;</cfif>">
+				<cfoutput>#printEntity.getPrintContent()#</cfoutput>
+			</div>
+			<cfsilent>
+				<cfif printEntity.getLogPrintFlag()>
+					<cfset entityMerge(printEntity) />
+					<cfset entitySave(printEntity) />
+				<cfelse>
+					<cfset entityDelete(printEntity)/>
+				</cfif>
+			</cfsilent>
+		</cfif>
+	</cfloop>
 <cfset $.slatwall.clearPrintQueue() />
 <cfelse>
-<p class="error">There are no documents in the queue to print</p>
+	<p class="error">There are no documents in the queue to print</p>
 </cfif>
 </body>
 </html>

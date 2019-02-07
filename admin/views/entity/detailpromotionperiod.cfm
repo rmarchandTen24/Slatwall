@@ -46,10 +46,19 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../tags" />
+<cfimport prefix="hb" taglib="../../../org/Hibachi/HibachiTags" />
+
+
 <cfparam name="rc.promotionperiod" type="any">
 <cfparam name="rc.promotion" type="any" default="#rc.promotionPeriod.getPromotion()#">
 <cfparam name="rc.edit" type="boolean">
 
+<!--- prevent editing promotion period if it is past the startDateTime for this promotion or the startTime is forever then this can not be edited. --->
+<cfif rc.edit and rc.promotionPeriod.getCurrentFlag() and rc.promotion.getPromotionAppliedOrdersCount() gt 0>
+	<cfset rc.edit = false>
+	<cfset rc.$.slatwall.showMessageKey('admin.pricing.promotionperiod_inprogress.editdisabled_info') />
+</cfif>
 <!--- prevent editing promotion period if it has expired --->
 <cfif rc.edit and rc.promotionperiod.isExpired()>
 	<cfset rc.edit = false />
@@ -57,32 +66,30 @@ Notes:
 </cfif>
 
 <cfoutput>
-	<cf_HibachiEntityDetailForm object="#rc.promotionperiod#" edit="#rc.edit#" saveActionQueryString="promotionID=#rc.promotion.getPromotionID()#">
+	<hb:HibachiEntityDetailForm object="#rc.promotionperiod#" edit="#rc.edit#" saveActionQueryString="promotionID=#rc.promotion.getPromotionID()#">
 						   	   
-		<cf_HibachiEntityActionBar type="detail" object="#rc.promotionPeriod#" edit="#rc.edit#"
+		<hb:HibachiEntityActionBar type="detail" object="#rc.promotionPeriod#" edit="#rc.edit#"
 							backAction="admin:entity.detailpromotion"
 							backQueryString="promotionID=#rc.promotion.getPromotionID()#"
 							cancelAction="admin:entity.detailpromotion"
 							cancelQueryString="promotionID=#rc.promotion.getPromotionID()#"								   
-							deleteQueryString="promotionID=#rc.promotion.getPromotionID()#&redirectAction=admin:entity.detailpromotion"   />
+							deleteQueryString="promotionID=#rc.promotion.getPromotionID()#&redirectAction=admin:entity.detailpromotion">
+			<!--- Duplicate --->
+			<hb:HibachiProcessCaller action="admin:entity.preProcessPromotionPeriod" entity="#rc.promotionperiod#" processContext="duplicatePromotionPeriod" type="list" modal="true" />
+			
+			<!--- End Promotion Period --->
+			<hb:HibachiProcessCaller action="admin:entity.preProcessPromotionPeriod" entity="#rc.promotionperiod#" processContext="endPromotionPeriod" type="list" modal="true" />
+ 		
+		</hb:HibachiEntityActionBar>
 							    			  	  
 		<input type="hidden" name="promotion.promotionID" value="#rc.promotion.getPromotionID()#" />
-
-		<cf_HibachiPropertyRow>
-			<cf_HibachiPropertyList>
-				<cf_HibachiPropertyDisplay object="#rc.promotionperiod#" property="startdatetime" edit="#rc.edit#" fieldclass="noautofocus">
-				<cf_HibachiPropertyDisplay object="#rc.promotionperiod#" property="enddatetime" edit="#rc.edit#">
-				<cf_HibachiPropertyDisplay object="#rc.promotionperiod#" property="maximumusecount" edit="#rc.edit#">
-				<cf_HibachiPropertyDisplay object="#rc.promotionperiod#" property="maximumaccountusecount" edit="#rc.edit#">
-			</cf_HibachiPropertyList>
-		</cf_HibachiPropertyRow>
-
-	</cf_HibachiEntityDetailForm>
-	
-	<cf_HibachiTabGroup object="#rc.promotionperiod#">
-			<cf_HibachiTab view="admin:entity/promotionperiodtabs/promotionrewards" />
-			<cf_HibachiTab view="admin:entity/promotionperiodtabs/promotionqualifiers" />
-	</cf_HibachiTabGroup>
+		
+		<hb:HibachiEntityDetailGroup object="#rc.promotionperiod#">
+				<hb:HibachiEntityDetailItem view="admin:entity/promotionperiodtabs/basic" open="true" text="#$.slatwall.rbKey('admin.define.basic')#" showOnCreateFlag=true />
+				<hb:HibachiEntityDetailItem view="admin:entity/promotionperiodtabs/promotionrewards" />
+				<hb:HibachiEntityDetailItem view="admin:entity/promotionperiodtabs/promotionqualifiers" />
+		</hb:HibachiEntityDetailGroup>
+	</hb:HibachiEntityDetailForm>
 	
 </cfoutput>
 

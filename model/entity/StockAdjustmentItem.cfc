@@ -50,13 +50,16 @@ component entityname="SlatwallStockAdjustmentItem" table="SwStockAdjustmentItem"
 
 	// Persistent Properties
 	property name="stockAdjustmentItemID" ormtype="string" length="32" fieldtype="id" generator="uuid" unsavedvalue="" default="";
-	property name="quantity" ormtype="integer" default=0;
+	property name="quantity" ormtype="float" default=0;
+	property name="cost" ormtype="big_decimal" hb_formatType="currency";
+	property name="currencyCode" ormtype="string" length="3";
 	
 	// Related Object Properties (many-to-one)
 	property name="stockAdjustment" cfc="StockAdjustment" fieldtype="many-to-one" fkcolumn="stockAdjustmentID";
-	property name="fromStock" cfc="Stock" fieldtype="many-to-one" fkcolumn="fromStockID";
-	property name="toStock" cfc="Stock" fieldtype="many-to-one" fkcolumn="toStockID";
-	
+	property name="fromStock" cfc="Stock" fieldtype="many-to-one" fkcolumn="fromStockID" hb_cascadeCalculate="true";
+	property name="toStock" cfc="Stock" fieldtype="many-to-one" fkcolumn="toStockID" hb_cascadeCalculate="true";
+	property name="sku" cfc="Sku" fieldtype="many-to-one" fkcolumn="skuID";
+
 	// Related Object Properties (one-to-many)
 	property name="stockAdjustmentDeliveryItems" singularname="stockAdjustmentDeliveryItem" cfc="StockAdjustmentDeliveryItem" type="array" fieldtype="one-to-many" fkcolumn="stockAdjustmentItemID" cascade="all-delete-orphan" inverse="true";
 	property name="stockReceiverItems" singularname="stockReceiverItem" cfc="StockReceiverItem" type="array" fieldtype="one-to-many" fkcolumn="stockAdjustmentItemID" cascade="all-delete-orphan" inverse="true";
@@ -66,6 +69,10 @@ component entityname="SlatwallStockAdjustmentItem" table="SwStockAdjustmentItem"
 	property name="createdByAccountID" hb_populateEnabled="false" ormtype="string";
 	property name="modifiedDateTime" hb_populateEnabled="false" ormtype="timestamp";
 	property name="modifiedByAccountID" hb_populateEnabled="false" ormtype="string";
+		
+	public boolean function isNotClosed(){
+		return variables.stockAdjustment.getStockAdjustmentStatusType().getSystemCode() != "sastClosed";
+	}	
 		
 	// For use with Adjustment Items interface, get one stock that we will use displaying sku info. 
 	public any function getOneStock() {
@@ -126,9 +133,23 @@ component entityname="SlatwallStockAdjustmentItem" table="SwStockAdjustmentItem"
 	
 	// ===============  END: Custom Formatting Methods =====================
 	
-	// ============== START: Overridden Implicet Getters ===================
+	// ============== START: Overridden Implicit Getters ===================
 	
-	// ==============  END: Overridden Implicet Getters ====================
+	// ==============  END: Overridden Implicit Getters ====================
+
+	// ============== START: Overridden Implicit Setters ===================
+	
+	public void function setFromStock(required any stock) {
+		variables.sku=arguments.stock.getSku();
+		variables.fromStock=arguments.stock;
+	}
+
+	public void function setToStock(required any stock) {
+		variables.sku=arguments.stock.getSku();
+		variables.toStock=arguments.stock;
+	}
+
+	// ==============  END: Overridden Implicit Setters ====================
 
 	// ================== START: Overridden Methods ========================
 	

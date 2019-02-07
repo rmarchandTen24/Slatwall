@@ -51,6 +51,7 @@ component displayname="Address Zone" entityname="SlatwallAddressZone" table="SwA
 	// Persistent Properties
 	property name="addressZoneID" ormtype="string" length="32" fieldtype="id" generator="uuid" unsavedvalue="" default="";
 	property name="addressZoneName" ormtype="string";
+	property name="addressZoneCode" ormtype="string" default="";
 	
 	// Related Object Properties (One-To-Many) - These are for doing delete validation to ensure that there are no entities using this address zone
 	property name="shippingMethods" singularname="shippingMethod" cfc="ShippingMethod" fieldtype="one-to-many" fkcolumn="addressZoneID" inverse="true";
@@ -58,6 +59,9 @@ component displayname="Address Zone" entityname="SlatwallAddressZone" table="SwA
 	property name="taxCategoryRates" singularname="taxCategoryRate" cfc="TaxCategoryRate" fieldtype="one-to-many" fkcolumn="addressZoneID" inverse="true";
 	
 	// Related Object Properties (Many-To-Many)
+	/** 
+	* @allowcascade 
+	*/
 	property name="addressZoneLocations" singularname="addressZoneLocation" cfc="Address" fieldtype="many-to-many" linktable="SwAddressZoneLocation" fkcolumn="addressZoneID" inversejoincolumn="addressID" cascade="all-delete-orphan";
 	property name="promotionQualifiers" singularname="promotionQualifier" cfc="PromotionQualifier" fieldtype="many-to-many" linktable="SwPromoQualShipAddressZone" fkcolumn="addressZoneID" inversejoincolumn="promotionQualifierID" inverse="true";
 	

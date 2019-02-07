@@ -51,15 +51,18 @@ component displayname="Shipping Method" entityname="SlatwallShippingMethod" tabl
 	// Persistent Properties
 	property name="shippingMethodID" ormtype="string" length="32" fieldtype="id" generator="uuid" unsavedvalue="" default="";
 	property name="activeFlag" ormtype="boolean";
+	property name="publishedFlag" ormtype="boolean";
 	property name="shippingMethodName" ormtype="string";
+	property name="shippingMethodCode" ormtype="string";
 	property name="sortOrder" ormtype="integer" sortContext="fulfillmentMethod";
 	
 	// Related Object Properties (many-to-one)
+	
 	property name="fulfillmentMethod" cfc="FulfillmentMethod" fieldtype="many-to-one" fkcolumn="fulfillmentMethodID";
 	
 	// Related Object Properties (one-to-many)
 	property name="shippingMethodRates" singularname="shippingMethodRate" cfc="ShippingMethodRate" fieldtype="one-to-many" fkcolumn="shippingMethodID" inverse="true" cascade="all-delete-orphan";
-	property name="orderFulfillments" singularname="orderFulfillment" cfc="OrderFulfillment" fieldtype="one-to-many" fkcolumn="shippingMethodID" inverse="true" lazy="extra";
+	property name="orderFulfillments" singularname="orderFulfillment" cfc="OrderFulfillment" fieldtype="one-to-many" fkcolumn="shippingMethodID" inverse="true";
 	
 	// Related Object Properties (many-to-many - owner)
 	
@@ -80,7 +83,8 @@ component displayname="Shipping Method" entityname="SlatwallShippingMethod" tabl
 
 	public array function getShippingMethodRateIntegrationOptions() {
 		var optionsSL = getService("integrationService").getIntegrationSmartList();
-		optionsSL.addFilter('shippingActiveFlag', '1');
+		optionsSL.addFilter('activeFlag', '1');
+		optionsSL.addLikeFilter('integrationTypeList', '%shipping%');
 		optionsSL.addSelect('integrationName', 'name');
 		optionsSL.addSelect('integrationID', 'value');
 		return optionsSL.getRecords();

@@ -46,21 +46,43 @@
 Notes:
 
 --->
-
+<cfimport prefix="swa" taglib="../../../tags" />
+<cfimport prefix="hb" taglib="../../../org/Hibachi/HibachiTags" />
 <cfsetting showdebugoutput="no" requesttimeout="200" />
 
 <cfif structKeyExists(server, "railo")>
 	<cfset local.logFile = expandPath('/') & "WEB-INF/railo/logs/Slatwall.log">
+	<cfif not fileExists(local.logFile) >
+		<!--- try lucee path for those who've upgraded from railo and left railo remnants on server --->
+		<cfset local.logFile = expandPath('/') & "WEB-INF/lucee/logs/Slatwall.log">
+	</cfif>
+<cfelseif structKeyExists(server, "lucee")>
+	<!--- for clean lucee install --->
+	<cfset local.logFile = expandPath('/') & "WEB-INF/lucee/logs/Slatwall.log">
+
+	<!--- Are we in c9? --->
+	<cfif not fileExists(local.logFile) >
+		<cfset local.logFile = "/opt/lucee/web/logs/Slatwall.log">
+	</cfif>
 <cfelse>
 	<cfset local.logFile = Server.ColdFusion.RootDir & "/logs/Slatwall.log">
 </cfif>
 
 <cfoutput>
+	<div class="row s-body-nav">
+	    <nav class="navbar navbar-default" role="navigation">
+	      <div class="col-md-4 s-header-info">
+				<!--- Page Title --->
+				<h1 class="actionbar-title">#$.slatwall.rbKey('admin.main.log')#</h1>
+			</div>
+		 </div>
+	   </nav>
+	 </div>
 	<cfif fileExists(local.logFile)>
 		<cfset local.readFile = fileRead(local.logFile) />
 		<cfset local.fileArray = listToArray(local.readFile, chr(10)) />
 		<cfloop from="#arrayLen(local.fileArray)#" to="1" step="-1" index="local.i">
-			<cfif structKeyExists(server, "railo") or findNoCase(application.applicationname, local.fileArray[ local.i ])>
+			<cfif structKeyExists(server, "lucee") or structKeyExists(server, "railo") or findNoCase(application.applicationname, local.fileArray[ local.i ])>
 				<cfset writeOutput(replace(replace(local.fileArray[ local.i ],'"Information",',''),'"#UCASE(application.applicationname)#",','')) />
 				<cfset writeOutput("<br />") />
 			</cfif>

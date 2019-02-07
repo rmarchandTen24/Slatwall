@@ -46,7 +46,7 @@
 Notes:
 
 */
-component displayname="Currency" entityname="SlatwallCurrency" table="SwCurrency" persistent="true" accessors="true" extends="HibachiEntity" cacheuse="transactional" hb_serviceName="currencyService" hb_permission="this" {
+component displayname="Currency" entityname="SlatwallCurrency" table="SwCurrency" persistent="true" accessors="true" extends="HibachiEntity" cacheuse="transactional" hb_serviceName="currencyService" hb_permission="this" hb_defaultOrderProperty="currencyName" {
 	
 	// Persistent Properties
 	property name="currencyCode" ormtype="string" fieldtype="id" unique="true" generated="never";
@@ -58,6 +58,7 @@ component displayname="Currency" entityname="SlatwallCurrency" table="SwCurrency
 	// Related Object Properties (many-to-one)
 	
 	// Related Object Properties (one-to-many)
+	property name="currencyRates" singularname="currencyRate" cfc="CurrencyRate" type="array" fieldtype="one-to-many" fkcolumn="currencyCode" cascade="all-delete-orphan" inverse="true";
 	
 	// Related Object Properties (many-to-many - owner)
 
@@ -89,6 +90,14 @@ component displayname="Currency" entityname="SlatwallCurrency" table="SwCurrency
 	// ============  END:  Non-Persistent Property Methods =================
 		
 	// ============= START: Bidirectional Helper Methods ===================
+	
+	// Currency Rates (one-to-many)    
+	public void function addCurrencyRate(required any currencyRate) {    
+		arguments.currencyRate.setCurrency( this );    
+	}    
+	public void function removeCurrencyRate(required any currencyRate) {    
+		arguments.currencyRate.removeCurrency( this );    
+	}
 	
 	// =============  END:  Bidirectional Helper Methods ===================
 

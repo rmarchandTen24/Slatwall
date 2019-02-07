@@ -46,7 +46,7 @@
 Notes:
 
 */
-component displayname="Account Payment" entityname="SlatwallAccountPayment" table="SwAccountPayment" persistent="true" accessors="true" extends="HibachiEntity" cacheuse="transactional" hb_serviceName="accountService" hb_permission="account.accountPayment" hb_processContexts="offlineTransaction,process" {
+component displayname="Account Payment" entityname="SlatwallAccountPayment" table="SwAccountPayment" persistent="true" accessors="true" extends="HibachiEntity" cacheuse="transactional" hb_serviceName="accountService" hb_permission="account.accountPayments" hb_processContexts="offlineTransaction,process,createTransaction" {
 	
 	// Persistent Properties
 	property name="accountPaymentID" ormtype="string" length="32" fieldtype="id" generator="uuid" unsavedvalue="" default="";
@@ -54,6 +54,7 @@ component displayname="Account Payment" entityname="SlatwallAccountPayment" tabl
 	property name="bankRoutingNumberEncrypted" ormType="string";
 	property name="bankAccountNumberEncrypted" ormType="string";
 	property name="checkNumberEncrypted" ormType="string";
+	property name="companyPaymentMethodFlag" ormType="boolean";
 	property name="creditCardNumberEncrypted" ormType="string";
 	property name="creditCardLastFour" ormType="string";
 	property name="creditCardType" ormType="string";
@@ -187,6 +188,11 @@ component displayname="Account Payment" entityname="SlatwallAccountPayment" tabl
 		// Make sure the payment method matches
 		setPaymentMethod( arguments.accountPaymentMethod.getPaymentMethod() );
 		
+		// Company PaymentMethod Flag
+		if(!isNull(arguments.accountPaymentMethod.getCompanyPaymentMethodFlag())) {
+			setCompanyPaymentMethodFlag( arguments.accountPaymentMethod.getCompanyPaymentMethodFlag() );
+		}
+		
 		// Credit Card
 		if(listFindNoCase("creditCard", arguments.accountPaymentMethod.getPaymentMethod().getPaymentMethodType())) {
 			if(!isNull(arguments.accountPaymentMethod.getCreditCardNumber())) {
@@ -218,13 +224,35 @@ component displayname="Account Payment" entityname="SlatwallAccountPayment" tabl
 	
 	// ============ START: Non-Persistent Property Methods =================
 	
-	public numeric function getAmount() {
+	public numeric function getNetAmount() {
 		var totalAmt = 0;
 		
 		for(var i=1; i<=arrayLen(getAppliedAccountPayments()); i++) {
-			totalAmt = precisionEvaluate(totalAmt + getAppliedAccountPayments()[i].getAmount());
+			var appliedAccountPayment = getAppliedAccountPayments()[i];
+			if(!isNull(appliedAccountPayment.getAccountPaymentType())){
+				if(appliedAccountPayment.getAccountPaymentType().getSystemCode() == 'aptCharge'){
+					totalAmt = getService('HibachiUtilityService').precisionCalculate(totalAmt + appliedAccountPayment.getAmount());
+				}else{
+					totalAmt = getService('HibachiUtilityService').precisionCalculate(totalAmt - appliedAccountPayment.getAmount());
+				}
+			}
 		}
 		
+		return totalAmt;
+	}
+	
+	public numeric function getAmount() {
+		var totalAmt = 0;
+		if(isNull(getAccountPaymentType()) || getAccountPaymentType().getSystemCode() != "aptAdjustment"){
+			for(var i=1; i<=arrayLen(getAppliedAccountPayments()); i++) {
+				
+				if(!isNull(getAppliedAccountPayments()[i].getOrderPayment())){
+					
+					totalAmt = getService('HibachiUtilityService').precisionCalculate(totalAmt + getAppliedAccountPayments()[i].getAmount());	
+				}
+			}
+			
+		}
 		return totalAmt;
 	}
 	
@@ -232,10 +260,10 @@ component displayname="Account Payment" entityname="SlatwallAccountPayment" tabl
 		var amountReceived = 0;
 		
 		// We only show 'received' for charged payments
-		if( getAccountPaymentType().getSystemCode() == "aptCharge" ) {
+		if( getAccountPaymentType().getSystemCode() == "aptCharge" || getAccountPaymentType().getSystemCode() == "aptAdjustment" ) {
 			
 			for(var i=1; i<=arrayLen(getPaymentTransactions()); i++) {
-				amountReceived = precisionEvaluate(amountReceived + getPaymentTransactions()[i].getAmountReceived());
+				amountReceived = getService('HibachiUtilityService').precisionCalculate(amountReceived + getPaymentTransactions()[i].getAmountReceived());
 			}
 			
 		}
@@ -247,10 +275,10 @@ component displayname="Account Payment" entityname="SlatwallAccountPayment" tabl
 		var amountCredited = 0;
 		
 		// We only show 'credited' for credited payments
-		if( getAccountPaymentType().getSystemCode() == "aptCredit" ) {
+		if( getAccountPaymentType().getSystemCode() == "aptCredit" || getAccountPaymentType().getSystemCode() == "aptAdjustment") {
 			
 			for(var i=1; i<=arrayLen(getPaymentTransactions()); i++) {
-				amountCredited = precisionEvaluate(amountCredited + getPaymentTransactions()[i].getAmountCredited());
+				amountCredited = getService('HibachiUtilityService').precisionCalculate(amountCredited + getPaymentTransactions()[i].getAmountCredited());
 			}
 			
 		}
@@ -265,7 +293,7 @@ component displayname="Account Payment" entityname="SlatwallAccountPayment" tabl
 		if( getAccountPaymentType().getSystemCode() == "aptCharge" ) {
 			for(var i=1; i<=arrayLen(getPaymentTransactions()); i++) {
 				if(isNull(getPaymentTransactions()[i].getAuthorizationCodeInvalidFlag()) || !getPaymentTransactions()[i].getAuthorizationCodeInvalidFlag()) {
-					amountAuthorized = precisionEvaluate(amountAuthorized + getPaymentTransactions()[i].getAmountAuthorized());
+					amountAuthorized = getService('HibachiUtilityService').precisionCalculate(amountAuthorized + getPaymentTransactions()[i].getAmountAuthorized());
 				}
 			}
 		}
@@ -277,7 +305,7 @@ component displayname="Account Payment" entityname="SlatwallAccountPayment" tabl
 		var unauthroized = 0;
 		
 		if ( getOrderPaymentType().getSystemCode() == "optCharge" ) {
-			unauthroized = precisionEvaluate(getAmount() - getAmountReceived() - getAmountAuthorized());
+			unauthroized = getService('HibachiUtilityService').precisionCalculate(getAmount() - getAmountReceived() - getAmountAuthorized());
 		}
 		
 		return unauthroized;
@@ -287,7 +315,7 @@ component displayname="Account Payment" entityname="SlatwallAccountPayment" tabl
 		var uncaptured = 0;
 		
 		if ( getOrderPaymentType().getSystemCode() == "optCharge" ) {
-			uncaptured = precisionEvaluate(getAmountAuthorized() - getAmountReceived());
+			uncaptured = getService('HibachiUtilityService').precisionCalculate(getAmountAuthorized() - getAmountReceived());
 		}
 		
 		return uncaptured;
@@ -297,7 +325,7 @@ component displayname="Account Payment" entityname="SlatwallAccountPayment" tabl
 		var unreceived = 0;
 		
 		if ( getOrderPaymentType().getSystemCode() == "optCharge" ) {
-			unreceived = precisionEvaluate(getAmount() - getAmountReceived());
+			unreceived = getService('HibachiUtilityService').precisionCalculate(getAmount() - getAmountReceived());
 		}
 		
 		return unreceived;
@@ -307,7 +335,7 @@ component displayname="Account Payment" entityname="SlatwallAccountPayment" tabl
 		var uncredited = 0;
 		
 		if ( getOrderPaymentType().getSystemCode() == "optCredit" ) {
-			uncredited = precisionEvaluate(getAmount() - getAmountCredited());
+			uncredited = getService('HibachiUtilityService').precisionCalculate(getAmount() - getAmountCredited());
 		}
 		
 		return uncredited;
@@ -318,10 +346,16 @@ component displayname="Account Payment" entityname="SlatwallAccountPayment" tabl
 		
 		for(var accountPaymentApplied in getAppliedAccountPayments()) {
 			if(isNull(accountPaymentApplied.getOrderPayment())) {
+				
 				if(accountPaymentApplied.getAccountPaymentType().getSystemCode() == "aptCharge") {
-					amountUnassigned = precisionEvaluate(amountUnassigned + accountPaymentApplied.getAmount());		
+					if(getAmountReceived()>0){
+						amountUnassigned = getService('HibachiUtilityService').precisionCalculate(amountUnassigned + accountPaymentApplied.getAmount());
+					}
+							
 				} else {
-					amountUnassigned = precisionEvaluate(amountUnassigned - accountPaymentApplied.getAmount());
+					if(getAMountCredited() > 0){
+						amountUnassigned = getService('HibachiUtilityService').precisionCalculate(amountUnassigned - accountPaymentApplied.getAmount());	
+					}
 				}
 			}
 		}
@@ -367,9 +401,9 @@ component displayname="Account Payment" entityname="SlatwallAccountPayment" tabl
 	
 	public array function getAccountPaymentAppliedOptions( ) {
 		if(!structKeyExists(variables, "appliedAccountPaymentOptions")) {
-			var smartList = getService('settingService').getTypeSmartList();
+			var smartList = getService('typeService').getTypeSmartList();
 			smartList.addInFilter('systemCode','aptCredit,aptCharge');
-			smartList.addSelect('type','name');
+			smartList.addSelect('typeName','name');
 			smartList.addSelect('typeID','value');
 			variables.appliedAccountPaymentOptions = smartList.getRecords();
 		}
@@ -454,7 +488,7 @@ component displayname="Account Payment" entityname="SlatwallAccountPayment" tabl
 	
 	public void function setCreditCardNumber(required string creditCardNumber) {
 		if(len(arguments.creditCardNumber)) {
-			variables.creditCardNumber = arguments.creditCardNumber;
+			variables.creditCardNumber = REReplaceNoCase(arguments.creditCardNumber, '[^0-9]', '', 'ALL');
 			setCreditCardLastFour( right(arguments.creditCardNumber, 4) );
 			setCreditCardType( getService("paymentService").getCreditCardTypeFromNumber(arguments.creditCardNumber) );
 		} else {
@@ -470,11 +504,18 @@ component displayname="Account Payment" entityname="SlatwallAccountPayment" tabl
 			return rbKey('define.new') & ' ' & rbKey('entity.accountPayment');
 		}
 		
-		if(getPaymentMethodType() == "creditCard") {
-			return getPaymentMethod().getPaymentMethodName() & " - " & getCreditCardType() & " ***" & getCreditCardLastFour() & ' - ' & getFormattedValue('amount');	
+		var paymentMethodName = "";
+		
+		if(!isNull(getPaymentMethod())){
+			paymentMethodName = getPaymentMethod().getPaymentMethodName();
 		}
 		
-		return getPaymentMethod().getPaymentMethodName() & ' - ' & getFormattedValue('amount');
+		if(getPaymentMethodType() == "creditCard") {
+			return paymentMethodName & " - " & getCreditCardType() & " ***" & getCreditCardLastFour() & ' - ' & getFormattedValue('amount');	
+		}
+		
+		
+		return paymentMethodName & ' - ' & getFormattedValue('amount');
 	}
 	
 	// ==================  END:  Overridden Methods ========================

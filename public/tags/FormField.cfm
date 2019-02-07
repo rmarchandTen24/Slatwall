@@ -59,6 +59,7 @@ Notes:
 	<cfparam name="attributes.value" type="any" default="" />
 	<cfparam name="attributes.valueOptions" type="array" default="#arrayNew(1)#" />		<!--- Used for select, checkbox group, multiselect --->
 	<cfparam name="attributes.fieldAttributes" type="string" default="" />
+	<cfparam name="attributes.hibachiScope" type="any" default="#request.slatwallScope#" />
 	
 	<!---
 		attributes.type have the following options:
@@ -71,6 +72,7 @@ Notes:
 		radiogroup			|	Requires the valueOptions to be an array of simple value if name and value is same or array of structs with the format of {value="", name=""}
 		select      		|	Requires the valueOptions to be an array of simple value if name and value is same or array of structs with the format of {value="", name=""}
 		text				|	Simple Text Field
+		email				|	Checks that input value passed in is in valid email format
 		textarea			|	Simple Textarea
 		yesno				|	This is used by booleans and flags to create a radio group of Yes and No
 	--->
@@ -173,12 +175,17 @@ Notes:
 		</cfcase>
 		<cfcase value="text">
 			<cfoutput>
-				<input type="text" name="#attributes.name#" value="#htmlEditFormat(attributes.value)#" class="#attributes.class#" #attributes.fieldAttributes# />
+				<input type="text" name="#attributes.name#" value="#attributes.value#" class="#attributes.class#" #attributes.fieldAttributes# />
+			</cfoutput>
+		</cfcase>
+		<cfcase value="email">
+			<cfoutput>
+				<input type="email" name="#attributes.name#" value="#attributes.value#" class="#attributes.class#" #attributes.fieldAttributes# />
 			</cfoutput>
 		</cfcase>
 		<cfcase value="textarea">
 			<cfoutput>
-				<textarea name="#attributes.name#" class="#attributes.class#" #attributes.fieldAttributes#>#htmlEditFormat(attributes.value)#</textarea>
+				<textarea name="#attributes.name#" class="#attributes.class#" #attributes.fieldAttributes#>#attributes.value#</textarea>
 			</cfoutput>
 		</cfcase>
 		<cfcase value="yesno">

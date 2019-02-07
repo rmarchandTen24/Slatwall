@@ -46,40 +46,47 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../tags" />
+<cfimport prefix="hb" taglib="../../../org/Hibachi/HibachiTags" />
+
+
 <cfparam name="rc.subscriptionUsageBenefit" type="any">
 <cfparam name="rc.subscriptionUsage" type="any" default="#rc.subscriptionUsageBenefit.getSubscriptionUsage()#">
 <cfparam name="rc.edit" type="boolean">
 
 <cfoutput>
-	<cf_HibachiEntityDetailForm object="#rc.subscriptionUsageBenefit#" edit="#rc.edit#"
+	<hb:HibachiEntityDetailForm object="#rc.subscriptionUsageBenefit#" edit="#rc.edit#"
 								saveActionQueryString="subscriptionUsageID=#rc.subscriptionUsage.getSubscriptionUsageID()#&sRedirectAction=admin:entity.detailsubscriptionusage">
 		
-		<cf_HibachiEntityActionBar type="detail" object="#rc.subscriptionUsageBenefit#" edit="#rc.edit#" 
+		<hb:HibachiEntityActionBar type="detail" object="#rc.subscriptionUsageBenefit#" edit="#rc.edit#" 
 									backAction="admin:entity.detailSubscriptionUsage" 
 								    backQueryString="subscriptionUsageID=#rc.subscriptionUsage.getSubscriptionUsageID()#"
-								    deleteQueryString="redirectAction=admin:entity.detailSubscriptionUsage&subscriptionUsageID=#rc.subscriptionUsage.getSubscriptionUsageID()#" />
-									
-		<cf_HibachiPropertyRow>
-			<cf_HibachiPropertyList>
-				<cf_HibachiPropertyDisplay object="#rc.subscriptionUsageBenefit#" property="subscriptionBenefit" edit="false">
-				<cf_HibachiPropertyDisplay object="#rc.subscriptionUsageBenefit#" property="maxUseCount" edit="false">
-				<cf_HibachiPropertyDisplay object="#rc.subscriptionUsageBenefit#" property="accessType" edit="false">
-			</cf_HibachiPropertyList>
-		</cf_HibachiPropertyRow>
+								    deleteQueryString="redirectAction=admin:entity.detailSubscriptionUsage&subscriptionUsageID=#rc.subscriptionUsage.getSubscriptionUsageID()#" >
+			<hb:HibachiProcessCaller entity="#rc.subscriptionUsage#"
+									action="admin:entity.preprocesssubscriptionusagebenefitaccount"
+									processContext="addUsageBenefitAccount"
+									queryString="subscriptionUsageBenefitID=#rc.subscriptionUsageBenefit.getSubscriptionUsageBenefitID()#"
+									type="list"
+									modal="true" />
+		</hb:HibachiEntityActionBar>
+
 		
-		<cf_HibachiTabGroup object="#rc.subscriptionUsageBenefit#">
-			<cf_HibachiTab view="admin:entity/subscriptionusagebenefittabs/categories" />
-			<cf_HibachiTab view="admin:entity/subscriptionusagebenefittabs/contents" />
-			<cf_HibachiTab view="admin:entity/subscriptionusagebenefittabs/pricegroups" />
-		</cf_HibachiTabGroup>
+
+		<hb:HibachiEntityDetailGroup object="#rc.subscriptionUsageBenefit#">
+			<hb:HibachiEntityDetailItem view="admin:entity/subscriptionusagebenefittabs/basic" open="true" />
+			<hb:HibachiEntityDetailItem view="admin:entity/subscriptionusagebenefittabs/accounts" />
+			<hb:HibachiEntityDetailItem view="admin:entity/subscriptionusagebenefittabs/categories" />
+			<hb:HibachiEntityDetailItem view="admin:entity/subscriptionusagebenefittabs/contents" />
+			<hb:HibachiEntityDetailItem view="admin:entity/subscriptionusagebenefittabs/pricegroups" />
+		</hb:HibachiEntityDetailGroup>
 		
 		<!---
-		<cf_HibachiTabGroup object="#rc.subscriptionUsage#">
-			<cf_HibachiTab view="admin:entity/subscriptionusagetabs/usagebenifits">
-			<cf_HibachiTab property="subscriptionStatus">
-			<cf_HibachiTab view="admin:entity/subscriptionusagetabs/orderitems">
-			<cf_HibachiTab view="admin:entity/subscriptionusagetabs/subscriptionusagesettings" />
-		</cf_HibachiTabGroup>
+		<hb:HibachiTabGroup object="#rc.subscriptionUsage#">
+			<hb:HibachiTab view="admin:entity/subscriptionusagetabs/usagebenifits">
+			<hb:HibachiTab property="subscriptionStatus">
+			<hb:HibachiTab view="admin:entity/subscriptionusagetabs/orderitems">
+			<hb:HibachiTab view="admin:entity/subscriptionusagetabs/subscriptionusagesettings" />
+		</hb:HibachiTabGroup>
 		--->
-	</cf_HibachiEntityDetailForm>
+	</hb:HibachiEntityDetailForm>
 </cfoutput>

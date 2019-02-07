@@ -54,6 +54,7 @@ component extends="HibachiService" accessors="true" output="false" {
 	property name="skuService" type="any";
 	property name="stockService" type="any";
 	property name="settingService" type="any";
+	property name="typeService" type="any";
 	
 	// ===================== START: Logical Methods ===========================
 	
@@ -70,13 +71,17 @@ component extends="HibachiService" accessors="true" output="false" {
 	// ===================== START: Process Methods ===========================
 	
 	// Physical 
-	public any function processPhysical_commit(required any physical) {
+	public any function processPhysical_commit(required any physical, any processObject) {
 		
 		// Setup a locations adjustment to only create 1 new stock adjustment per location
 		var locationAdjustments = {};
 		
 		// get the discrepancy records
 		var physicalCountDescrepancies = arguments.physical.getDiscrepancyQuery();
+		
+		if(!isNull(arguments.processObject.getExpenseLedgerAccountID())){
+			arguments.physical.setExpenseLedgerAccount(arguments.processObject.getExpenseLedgerAccount());
+		}
 		
 		// Loop over discrepancy records
 		for(var rowCount=1; rowCount <= physicalCountDescrepancies.recordCount; rowCount++) {
@@ -86,8 +91,8 @@ component extends="HibachiService" accessors="true" output="false" {
 				locationAdjustments[ location.getLocationID() ] = getStockService().newStockAdjustment();
 				locationAdjustments[ location.getLocationID() ].setToLocation( location );
 				locationAdjustments[ location.getLocationID() ].setFromLocation( location );
-				locationAdjustments[ location.getLocationID() ].setStockAdjustmentType( getSettingService().getTypeBySystemCode("satPhysicalCount") );
-				locationAdjustments[ location.getLocationID() ].setStockAdjustmentStatusType( getSettingService().getTypeBySystemCode("sastNew") );
+				locationAdjustments[ location.getLocationID() ].setStockAdjustmentType( getTypeService().getTypeBySystemCode("satPhysicalCount") );
+				locationAdjustments[ location.getLocationID() ].setStockAdjustmentStatusType( getTypeService().getTypeBySystemCode("sastNew") );
 				locationAdjustments[ location.getLocationID() ].setPhysical( arguments.physical );
 			}
 			
@@ -119,7 +124,7 @@ component extends="HibachiService" accessors="true" output="false" {
 		}
 		
 		//set physical status to closed
-		arguments.physical.setPhysicalStatusType( getSettingService().getTypeBySystemCode('pstClosed') );
+		arguments.physical.setPhysicalStatusType( getTypeService().getTypeBySystemCode('pstClosed') );
 		
 		return arguments.physical;
 	}
@@ -142,7 +147,8 @@ component extends="HibachiService" accessors="true" output="false" {
 		
 		// If a count file was uploaded, then we can use that
 		if( !isNull(arguments.processObject.getCountFile()) ) {
-			
+
+			getService('hibachiTagService').cfsetting(requesttimeout="600");			
 			// Get the temp directory
 			var tempDir = getHibachiTempDirectory();
 			
@@ -150,7 +156,7 @@ component extends="HibachiService" accessors="true" output="false" {
 			var documentData = fileUpload( tempDir,'countFile','','makeUnique' );
 			
 			//check uploaded file if its a valid text file
-			if( documentData.serverFileExt != "txt" ){
+			if( documentData.serverFileExt != "txt" && documentData.serverFileExt != "csv"  ){
 				
 				// Make sure that nothing is persisted
 				getHibachiScope().setORMHasErrors( true );
@@ -263,10 +269,72 @@ component extends="HibachiService" accessors="true" output="false" {
 		return arguments.physical;
 	}
 
+	// CycleCountBatch
+	public any function processCycleCountBatch_physicalCount(required any cycleCountBatch, required any processObject) {
+
+		// create Physical
+		var newPhysical = this.newPhysical();
+		var locationPhysicalCounts = {};
+		newPhysical.setPhysicalName(arguments.processObject.getPhysicalName());
+		newPhysical.setCycleCountBatch(arguments.cycleCountBatch);
+			
+		for(var cycleCountBatchItem in arguments.cycleCountBatch.getCycleCountBatchItems()) {
+			if(cycleCountBatchItem.getQuantity() != '') {
+				
+				if(!newPhysical.hasLocation(cycleCountBatchItem.getStock().getLocation())) {
+					newPhysical.addLocation(cycleCountBatchItem.getStock().getLocation());
+					// create Physical Count
+					var newPhysicalCount = this.newPhysicalCount();
+					newPhysicalCount.setPhysical(newPhysical);
+					newPhysicalCount.setLocation(cycleCountBatchItem.getStock().getLocation());
+					newPhysicalCount.setCountPostDateTime(arguments.processObject.getCountPostDateTime());
+					newPhysicalCount = this.savePhysical(newPhysicalCount);
+					locationPhysicalCounts[cycleCountBatchItem.getStock().getLocation().getLocationID()] = newPhysicalCount;
+				}
+				if(!newPhysical.hasSku(cycleCountBatchItem.getStock().getSku())) {
+					newPhysical.addSku(cycleCountBatchItem.getStock().getSku());
+				}
+				// create Physical Count Item
+				var newPhysicalCountItem = this.newPhysicalCountItem();
+				newPhysicalCountItem.setPhysicalCount(locationPhysicalCounts[cycleCountBatchItem.getStock().getLocation().getLocationID()]);
+				newPhysicalCountItem.setQuantity(cycleCountBatchItem.getQuantity());
+				newPhysicalCountItem.setStock(cycleCountBatchItem.getStock());
+				newPhysicalCountItem.setSkuCode(cycleCountBatchItem.getStock().getSku().getSkuCode());
+				newPhysicalCountItem.setCountPostDateTime(arguments.processObject.getCountPostDateTime());
+				newPhysicalCountItem.setCycleCountBatchItem(cycleCountBatchItem);
+				newPhysicalCountItem = this.savePhysicalCountItem(newPhysicalCountItem);
+				
+				// save the physical to prevent the object references an unsaved transient instance
+				newPhysical = this.savePhysical(newPhysical);
+				
+				cycleCountBatchItem.getStock().getSku().updateCalculatedProperties(true);
+			}
+		}
+		
+		//Need to validate the physical in case there were no cycleCountBatchItem with a quantity
+		newPhysical.validate(context="cycleCountBatchPhysicalCount");
+		
+		if(newPhysical.hasErrors()) {
+			arguments.cycleCountBatch.addErrors(newPhysical.getErrors());
+		} else {
+			arguments.cycleCountBatch.setPhysical(newPhysical);
+			arguments.cycleCountBatch.setCycleCountBatchStatusType( getService('TypeService').getTypeBySystemCode('ccbstClosed'));
+			
+			// Process Physical
+			this.processPhysical(newPhysical, {}, 'commit'); 
+		}
+
+		return arguments.cycleCountBatch;
+	}
 
 	// =====================  END: Process Methods ============================
 	
 	// ====================== START: Status Methods ===========================
+	
+	public any function exportPhysical(){
+		
+		return getService('hibachiService').export(getPhysicalDiscrepancyQuery(argumentCollection=arguments),'skuCode,locationName,productName,QOH,discrepancy');
+	}
 	
 	// ======================  END: Status Methods ============================
 	
@@ -285,6 +353,30 @@ component extends="HibachiService" accessors="true" output="false" {
 		
 		// Return the entity
 		return arguments.entity;
+	}
+
+	public any function processCycleCountBatch_create(required any cycleCountBatch, required any processObject, struct data={}) {
+		arguments.cycleCountBatch.setCycleCountBatchStatusType( getService('TypeService').getTypeBySystemCode('ccbstOpen'));
+			
+		var cycleCountGroupCollectionList = getService('physicalService').getCycleCountGroupCollectionList();
+		cycleCountGroupCollectionList.addFilter("cycleCountGroupID",arguments.processObject.getCycleCountGroups(), "IN");
+		
+		for (var cycleCountGroupStruct in cycleCountGroupCollectionList.getRecords()){
+			var cycleCountGroup = getService("physicalService").getCycleCountGroup(cycleCountGroupStruct.cycleCountGroupID);
+			
+			arguments.cycleCountBatch.addCycleCountGroup(cycleCountGroup);
+			
+			for(var stockDetails in cyclecountgroup.getCycleCountGroupsStockCollection().getRecords(formatRecords=false)) {
+					var stock = getService('StockService').getStock( stockDetails['stockID'] );
+		
+					var newCycleCountBatchItem = getHibachiScope().newEntity('cycleCountBatchItem');
+					newCycleCountBatchItem.setCycleCountBatch(arguments.cycleCountBatch);
+					newCycleCountBatchItem.setStock(stock);
+					getHibachiScope().saveEntity(newCycleCountBatchItem);
+				}	
+		}
+		
+		return save(arguments.cycleCountBatch, arguments.data);
 	}
 	
 	// ======================  END: Save Overrides ============================

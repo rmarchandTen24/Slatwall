@@ -46,16 +46,31 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../../tags" />
+<cfimport prefix="hb" taglib="../../../../org/Hibachi/HibachiTags" />
+
 <cfparam name="rc.order" type="any" />
+
+<cfset local.collectionOrderDeliveryList = $.slatwall.getService('orderService').getOrderDeliveryCollectionList()  >
+	<cfset local.collectionOrderDeliveryList.setDisplayProperties("fulfillmentMethod.fulfillmentMethodName,createdDateTime,trackingNumber,totalQuantityDelivered,location.locationName",{
+	    isVisible=true,
+	    isSearchable=true,
+	    isDeletable=true
+	}) >
+	<cfset local.collectionOrderDeliveryList.addDisplayProperty(displayProperty="orderDeliveryID",columnConfig={isVisible=false})>
+	<cfset local.collectionOrderDeliveryList.addFilter("order.orderID",rc.order.getOrderID())>
 
 <cfoutput>
 	
-	<cf_HibachiListingDisplay smartList="#rc.order.getOrderDeliveriesSmartList()#"
+	<hb:HibachiListingDisplay collectionList="#local.collectionOrderDeliveryList#"
 							  recordDetailAction="admin:entity.detailorderdelivery">
 			
-		<cf_HibachiListingColumn tdclass="primary" propertyIdentifier="fulfillmentMethod.fulfillmentMethodName" />
-		<cf_HibachiListingColumn propertyIdentifier="createdDateTime" />
-		<cf_HibachiListingColumn propertyIdentifier="totalQuantityDelivered" />
+		<hb:HibachiListingColumn tdclass="primary" propertyIdentifier="fulfillmentMethod.fulfillmentMethodName" />
+		<hb:HibachiListingColumn propertyIdentifier="createdDateTime" />
+		<hb:HibachiListingColumn propertyIdentifier="trackingNumber" /> 
+		<hb:HibachiListingColumn propertyIdentifier="totalQuantityDelivered" />
+		<hb:HibachiListingColumn propertyIdentifier="location.locationName" />
 		
-	</cf_HibachiListingDisplay>
+		
+	</hb:HibachiListingDisplay>
 </cfoutput>

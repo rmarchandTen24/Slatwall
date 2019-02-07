@@ -35,7 +35,7 @@
 Notes:
 
 */
-component displayname="Account Loyalty Program" entityname="SlatwallAccountLoyalty" table="SwAccountLoyalty" persistent="true" accessors="true"  output="false" extends="HibachiEntity" cacheuse="transactional" hb_serviceName="accountService" hb_permission="account.accountLoyalties" {
+component displayname="Account Loyalty Program" entityname="SlatwallAccountLoyalty" table="SwAccountLoyalty" persistent="true" accessors="true"  output="false" extends="HibachiEntity" cacheuse="transactional" hb_serviceName="accountService" hb_permission="account.accountLoyalties" hb_processContext="itemFulfilled,orderClosed,fulfillmentMethodUsed,enrollment,orderItemReceived,manualTransaction" {
 	
 	// Persistent Properties
 	property name="accountLoyaltyID" ormtype="string" length="32" fieldtype="id" generator="uuid" unsavedvalue="" default="";
@@ -84,11 +84,11 @@ component displayname="Account Loyalty Program" entityname="SlatwallAccountLoyal
 				// check expiration date and exclude expired points
 				if (!isNull( loyaltyTransaction.getExpirationDateTime() )) {				
 				 	if ( loyaltyTransaction.getExpirationDateTime() gt now() )  {
-						variables.lifetimeBalance = precisionEvaluate(variables.lifetimeBalance + pointsIn - pointsOut);	
+						variables.lifetimeBalance = getService('HibachiUtilityService').precisionCalculate(variables.lifetimeBalance + pointsIn - pointsOut);	
 					}
 				}
 				else {
-					variables.lifetimeBalance = precisionEvaluate(variables.lifetimeBalance + pointsIn - pointsOut);
+					variables.lifetimeBalance = getService('HibachiUtilityService').precisionCalculate(variables.lifetimeBalance + pointsIn - pointsOut);
 				}
 			}
 		}

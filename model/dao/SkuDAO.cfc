@@ -50,6 +50,23 @@ Notes:
 	
 	<cfproperty name="hibachiCacheService" type="any" />
 	
+	<cffunction name="getSkuDefinitionForMerchandiseBySkuID">
+		<cfargument name="skuID" required="true"/>
+		
+		<cfscript>
+			var skuDefinition = "";
+			var optionCollectionList = getService('optionService').getOptionCollectionList();
+			optionCollectionList.setDisplayProperties('optionGroup.optionGroupName,optionName,optionGroup.sortOrder');
+			optionCollectionList.addFilter('skus.skuID',arguments.skuID);
+			optionCollectionList.setOrderBy('optionGroup.sortOrder');
+			for(var item in optionCollectionList.getRecords()) {
+				skuDefinition = listAppend(skuDefinition, " #item['optionGroup_optionGroupName']#: #item['optionName']#", ",");
+			}
+			
+			return skuDefinition;
+		</cfscript>
+	</cffunction>
+	
 	<cffunction name="getTransactionExistsFlag" returntype="boolean" output="false">
 		<cfargument name="productID" />
 		<cfargument name="skuID" />
@@ -61,7 +78,7 @@ Notes:
 		<cfelse>
 			<cfset hql &= "ss.product.productID = :productID" />
 		</cfif>
-		
+
 		<cfset hql &= " AND (
 				EXISTS( SELECT a.orderItemID as id FROM SlatwallOrderItem a WHERE sku.skuID = ss.skuID )
 				  OR
@@ -83,7 +100,7 @@ Notes:
 			  	  OR
 			  	EXISTS( SELECT a.vendorOrderItemID as id FROM SlatwallVendorOrderItem a WHERE stock.sku.skuID = ss.skuID )
 			  )" />
-		
+
 		<cfif structKeyExists(arguments, "skuID") && !isNull(arguments.skuID)>
 			<cfset var results = ormExecuteQuery(hql, {skuID = arguments.skuID}) />
 		<cfelse>
@@ -98,6 +115,14 @@ Notes:
 	</cffunction>
 	
 	<cfscript>
+		
+	public array function getImageFileDataBySkuIDList(required string skuIDList){
+		var hql = "SELECT NEW MAP(imageFile as imageFile,skuID as skuID) FROM #getApplicationKey()#Sku WHERE skuID IN (:skuIDList)";
+		
+		var params = {skuIDList=arguments.skuIDList};
+		
+		return ORMExecuteQuery(hql,params);
+    }
 
 	public any function getSkuBySkuCode( required string skuCode){
 		return ormExecuteQuery( "SELECT ss FROM SlatwallSku ss LEFT JOIN ss.alternateSkuCodes ascs WHERE ss.skuCode = :skuCode OR ascs.alternateSkuCode = :skuCode", {skuCode=arguments.skuCode}, true ); 
@@ -105,6 +130,7 @@ Notes:
 		
 	// returns product skus which matches ALL options (list of optionIDs) that are passed in
 	public any function getSkusBySelectedOptions(required string selectedOptions, string productID) {
+		
 		var params = [];
 		var hql = "select distinct sku from SlatwallSku as sku 
 					inner join sku.options as opt 
@@ -147,17 +173,18 @@ Notes:
 		return result;
 	}
 	
-	public array function getProductSkus(required any product, required any fetchOptions) {
+	public array function getProductSkus(required any product, required any fetchOptions, required string joinType) {
 		
 		var hql = "SELECT sku FROM SlatwallSku sku ";
 		if(fetchOptions) {
 			if(arguments.product.getBaseProductType() eq "contentAccess") {
-				hql &= "INNER JOIN FETCH sku.accessContents contents ";	
+				hql &= "#arguments.joinType# JOIN FETCH sku.accessContents contents ";	
 			} else if (arguments.product.getBaseProductType() eq "merchandise") {
-				hql &= "INNER JOIN FETCH sku.options option ";
+				hql &= "#arguments.joinType# JOIN FETCH sku.options option ";
 			} else if (arguments.product.getBaseProductType() eq "subscription") {
-				hql &= "INNER JOIN sku.subscriptionTerm st ";
-				hql &= "INNER JOIN FETCH sku.subscriptionBenefits sb ";
+				hql &= "#arguments.joinType# JOIN sku.subscriptionTerm st ";
+				hql &= "#arguments.joinType# JOIN sku.orderItems oi ";
+				hql &= "#arguments.joinType# JOIN FETCH sku.subscriptionBenefits sb ";
 			}
 		}
 		var hql &= "WHERE sku.product.productID = :productID ";
@@ -167,10 +194,195 @@ Notes:
 		return skus;
 	}
 	
+	public any function getAverageCost(required string skuID, required string currencyCode, string locationID=""){
+		var params = {
+			skuID=arguments.skuID,
+			currencyCode=arguments.currencyCode
+		};
+		
+		
+		var hql = 'SELECT COALESCE( sum(stock.averageCost * stock.calculatedQOH) / nullIf(sum(stock.calculatedQOH),0), 0)
+			FROM SlatwallStock stock 
+			LEFT JOIN stock.sku sku
+			LEFT JOIN stock.location location
+		';
+		
+		hql &= ' WHERE sku.skuID=:skuID AND stock.averageCost IS NOT NULL AND location.currencyCode=:currencyCode ';
+		
+		if(len(arguments.locationID)){
+			hql&= ' AND location.locationID = :locationID';	
+			params.locationID = arguments.locationID;
+		}
+		
+		
+		return ORMExecuteQuery(
+			hql,
+			params,
+			true
+		);
+	}
+	
+	public any function getAverageLandedCost(required string skuID, required string currencyCode, string locationID=""){
+		var params = {
+			skuID=arguments.skuID,
+			currencyCode=arguments.currencyCode
+		};
+		
+		var hql = 'SELECT COALESCE(AVG(stock.averageLandedCost),0)
+			FROM SlatwallStock stock 
+			LEFT JOIN stock.sku sku
+			LEFT JOIN stock.location location
+		';
+		
+		hql &= ' WHERE sku.skuID=:skuID AND stock.averageCost IS NOT NULL AND location.currencyCode=:currencyCode ';
+		
+		if(len(arguments.locationID)){
+			hql &= ' AND location.locationID=:locationID ';	
+			params.locationID=arguments.locationID;
+		}
+		
+		return ORMExecuteQuery(
+			hql,
+			params,
+			true
+		);
+	}
+	
+	public any function getAverageProfit(required string skuID, required string currencyCode){
+		return getService('hibachiUtilityService').precisionCalculate(getAveragePriceSold(argumentCollection=arguments) - getAverageCost(argumentCollection=arguments));
+	}
+	
+	public any function getAverageLandedProfit(required string skuID, required string currencyCode){
+		return getService('hibachiUtilityService').precisionCalculate(getAveragePriceSold(argumentCollection=arguments) - getAverageLandedCost(argumentCollection=arguments));
+	}
+	
+	public any function getAverageMarkup(required string skuID, required string currencyCode){
+		var averagePriceSold = getAveragePriceSold(argumentCollection=arguments);
+		var averageCost = getAverageCost(argumentCollection=arguments);
+		if(averageCost == 0){
+			return 0;
+		}
+		
+		return getService('hibachiUtilityService').precisionCalculate(((averagePriceSold-averageCost)/averageCost)*100);
+	}
+	
+	public any function getAverageLandedMarkup(required string skuID, required string currencyCode){
+		var averagePriceSold = getAveragePriceSold(argumentCollection=arguments);
+		var averageLandedCost = getAverageLandedCost(argumentCollection=arguments);
+		if(averageLandedCost == 0){
+			return 0;
+		}
+		return getService('hibachiUtilityService').precisionCalculate(((averagePriceSold-averageLandedCost)/averageLandedCost)*100);
+	}
+	
+	public numeric function getCurrentMarginBeforeDiscount(required string skuID, required string currencyCode){
+		var averagePriceSold = getAveragePriceSoldAfterDiscount(argumentCollection=arguments);
+		if(averagePriceSold == 0){
+			return 0;
+		}
+		return getService('hibachiUtilityService').precisionCalculate((getAverageProfit(argumentCollection=arguments) / averagePriceSold) * 100);
+	}
+	
+	public numeric function getCurrentMargin(required string skuID, required string currencyCode){
+		var averagePriceSold = getAveragePriceSold(argumentCollection=arguments);
+		if(averagePriceSold == 0){
+			return 0;
+		}
+		return getService('hibachiUtilityService').precisionCalculate((getAverageProfit(argumentCollection=arguments) / averagePriceSold) * 100);
+	}
+	
+	public numeric function getCurrentLandedMargin(required string skuID, required string currencyCode){
+		var averagePriceSold = getAveragePriceSold(argumentCollection=arguments);
+		if(averagePriceSold == 0){
+			return 0;
+		}
+		return getService('hibachiUtilityService').precisionCalculate((getAverageLandedProfit(argumentCollection=arguments) / averagePriceSold) * 100);
+	}
+	
+	public numeric function getAverageDiscountAmount(required string skuID, required string currencyCode){
+		var hql = "SELECT NEW MAP(
+							COALESCE( sum(orderDeliveryItem.quantity), 0 ) as QDOO, 
+							COALESCE( sum(orderDeliveryItem.quantity*orderDeliveryItem.orderItem.calculatedDiscountAmount),0) as totalDiscountAmount 
+						) 
+						FROM
+							SlatwallOrderDeliveryItem orderDeliveryItem
+						  LEFT JOIN
+					  		orderDeliveryItem.orderItem orderItem
+						WHERE
+							orderDeliveryItem.orderItem.order.orderStatusType.systemCode NOT IN ('ostNotPlaced','ostCanceled')
+						  AND
+						  	orderDeliveryItem.orderItem.orderItemType.systemCode = 'oitSale'
+						  AND 
+							orderDeliveryItem.orderItem.sku.skuID = :skuID
+						  AND 
+						  	orderDeliveryItem.orderItem.currencyCode = :currencyCode
+						";
+		var QDOODetails = ormExecuteQuery(hql, {skuID=arguments.skuID,currencyCode=arguments.currencyCode},true);	
+		if(QDOODetails['QDOO']==0){
+			return 0;
+		}
+		var averageDiscountAmount = getService('hibachiUtilityService').precisionCalculate(QDOODetails['totalDiscountAmount']/QDOODetails['QDOO']);
+		return averageDiscountAmount;
+	}
+	
+	public numeric function getAveragePriceSoldAfterDiscount(required string skuID, required string currencyCode){
+		var hql = "SELECT NEW MAP(
+							COALESCE( sum(orderDeliveryItem.quantity), 0 ) as QDOO, 
+							COALESCE( sum(orderDeliveryItem.orderItem.calculatedExtendedPriceAfterDiscount),0) as totalAfterDiscount 
+						) 
+						FROM
+							SlatwallOrderDeliveryItem orderDeliveryItem
+						  LEFT JOIN
+					  		orderDeliveryItem.orderItem orderItem
+						WHERE
+							orderDeliveryItem.orderItem.order.orderStatusType.systemCode NOT IN ('ostNotPlaced','ostCanceled')
+						  AND
+						  	orderDeliveryItem.orderItem.orderItemType.systemCode = 'oitSale'
+						  AND 
+							orderDeliveryItem.orderItem.sku.skuID = :skuID
+						  AND 
+						  	orderDeliveryItem.orderItem.currencyCode = :currencyCode
+						";
+		var QDOODetails = ormExecuteQuery(hql, {skuID=arguments.skuID,currencyCode=arguments.currencyCode},true);	
+		if(QDOODetails['QDOO']==0){
+			return 0;
+		}
+		var AveragePriceSoldAfterDiscount = getService('hibachiUtilityService').precisionCalculate(QDOODetails['totalAfterDiscount']/QDOODetails['QDOO']);
+		return AveragePriceSoldAfterDiscount;
+	}
+	
+	public numeric function getAveragePriceSold(required string skuID, required string currencyCode){
+		 
+		var hql = "SELECT NEW MAP(
+							COALESCE( sum(orderDeliveryItem.quantity), 0 ) as QDOO, 
+							COALESCE( sum(orderDeliveryItem.orderItem.calculatedExtendedPrice),0) as totalEarned 
+						) 
+						FROM
+							SlatwallOrderDeliveryItem orderDeliveryItem
+						  LEFT JOIN
+					  		orderDeliveryItem.orderItem orderItem
+						WHERE
+							orderDeliveryItem.orderItem.order.orderStatusType.systemCode NOT IN ('ostNotPlaced','ostCanceled')
+						  AND
+						  	orderDeliveryItem.orderItem.orderItemType.systemCode = 'oitSale'
+						  AND 
+							orderDeliveryItem.orderItem.sku.skuID = :skuID
+						  AND 
+						  	orderDeliveryItem.orderItem.currencyCode = :currencyCode
+						";
+		var QDOODetails = ormExecuteQuery(hql, {skuID=arguments.skuID,currencyCode=arguments.currencyCode},true);	
+		if(QDOODetails['QDOO']==0){
+			return 0;
+		}
+		var averagePriceSold = getService('hibachiUtilityService').precisionCalculate(QDOODetails['totalEarned']/QDOODetails['QDOO']);
+		return averagePriceSold;
+	}
+
 	</cfscript>
 
 	<cffunction name="getSortedProductSkusID">
 		<cfargument name="productID" type="string" required="true" />
+		<cfargument name="joinType" type="string" default="INNER" />
 		
 		<cfset var sorted = "" />
 		<cfset var nextOptionGroupSortOrder = getHibachiCacheService().getOrCacheFunctionValue("skuDAO_getNextOptionGroupSortOrder", this, "getNextOptionGroupSortOrder") />
@@ -181,11 +393,11 @@ Notes:
 				SwSku.skuID
 			FROM
 				SwSku
-			  INNER JOIN
+			  #arguments.joinType# JOIN
 				SwSkuOption on SwSku.skuID = SwSkuOption.skuID
-			  INNER JOIN
+			  #arguments.joinType# JOIN
 				SwOption on SwSkuOption.optionID = SwOption.optionID
-			  INNER JOIN
+			  #arguments.joinType# JOIN
 				SwOptionGroup on SwOption.optionGroupID = SwOptionGroup.optionGroupID
 			WHERE
 				SwSku.productID = <cfqueryparam value="#arguments.productID#" cfsqltype="cf_sql_varchar" />
@@ -214,6 +426,65 @@ Notes:
 		</cfif>
 		
 		<cfreturn nogSortOrder />
+	</cffunction>
+	
+	<!--- Retuns a list of all locationID's used during a given time range --->
+	<cffunction name="getUsedLocationIdsByEventDates" returntype="any" access="public" >
+		<cfargument name="eventStartDateTime" type="date" />
+		<cfargument name="eventEndDateTime" type="date" />
+	 
+		<cfquery name="local.getUsedLocationIdsByEventDates" >
+			SELECT
+				DISTINCT lc.LocationID 
+			FROM 
+				SwSku
+			LEFT OUTER JOIN 
+				SwProduct 
+			ON 
+				SwSku.productID=SwProduct.productID 
+			LEFT OUTER JOIN 
+				SwSkuLocationConfiguration slc
+			ON 
+				SwSku.skuID = slc.skuID
+			LEFT OUTER JOIN 
+				SwLocationConfiguration lc
+			ON 
+				slc.locationConfigurationID = lc.locationConfigurationID
+			WHERE 
+				SwSku.activeFlag=1
+			AND 
+				SwProduct.activeFlag=1 
+			AND 
+				SwSku.bundleFlag=0 
+			AND
+				(	
+					(	
+						SwSku.eventStartDateTime <= <cfqueryparam cfsqltype="CF_SQL_TIMESTAMP" value="#arguments.eventStartDateTime#">
+							AND 
+						SwSku.eventEndDateTime >= <cfqueryparam cfsqltype="CF_SQL_TIMESTAMP" value="#arguments.eventEndDateTime#">
+					)
+					OR
+					(
+						SwSku.eventStartDateTime BETWEEN <cfqueryparam cfsqltype="CF_SQL_TIMESTAMP" value="#arguments.eventStartDateTime#"> AND <cfqueryparam cfsqltype="CF_SQL_TIMESTAMP" value="#arguments.eventEndDateTime#"> 
+							OR 
+						SwSku.eventEndDateTime BETWEEN <cfqueryparam cfsqltype="CF_SQL_TIMESTAMP" value="#arguments.eventStartDateTime#"> AND <cfqueryparam cfsqltype="CF_SQL_TIMESTAMP" value="#arguments.eventEndDateTime#">
+					)
+				)
+		</cfquery> 
+		
+		<cfreturn valueList(getUsedLocationIdsByEventDates.LocationID) />
+	</cffunction>
+	
+	<cffunction name="getSkuCostBySkuIDAndCurrencyCode">
+		<cfargument name="skuID" type="string" />
+		<cfargument name="currencyCode" type="string" />
+		<cfreturn ORMExecuteQuery('
+			FROM SlatwallSkuCost sc 
+			where sc.currency.currencyCode=:currencyCode
+			and sc.sku.skuID = :skuID
+			',{skuID=arguments.skuID,currencyCode=arguments.currencyCode},true)
+		/>
+		
 	</cffunction>
 	
 </cfcomponent>

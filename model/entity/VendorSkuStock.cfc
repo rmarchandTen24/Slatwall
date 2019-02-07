@@ -50,9 +50,9 @@ component entityname="SlatwallVendorSkuStock" table="SwVendorSkuStock" persisten
 	
 	// Persistent Properties
 	property name="vendorSkuStockID" ormtype="string" length="32" fieldtype="id" generator="uuid" unsavedvalue="" default="";
-	property name="cost" ormtype="big_decimal";
+	property name="cost" ormtype="big_decimal" hb_formatType="currency";
 	property name="currencyCode" ormtype="string" length="3";
-	property name="quantity" ormtype="integer";
+	property name="quantity" ormtype="float";
 	property name="availableDateTime" ormtype="timestamp";
 	
 	// Audit Properties
@@ -65,6 +65,8 @@ component entityname="SlatwallVendorSkuStock" table="SwVendorSkuStock" persisten
 	property name="sku" cfc="Sku" fieldtype="many-to-one" fkcolumn="skuID";
 	property name="vendor" cfc="Vendor" fieldtype="many-to-one" fkcolumn="vendorID";	
 	
+	// Remote properties
+	property name="remoteID" ormtype="string";
 	
 	// ============ START: Non-Persistent Property Methods =================
 	

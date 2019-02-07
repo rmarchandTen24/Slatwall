@@ -46,10 +46,11 @@
 Notes:
 
 */
-component displayname="Promotion Period" entityname="SlatwallPromotionPeriod" table="SwPromotionPeriod" persistent="true" extends="HibachiEntity" cacheuse="transactional" hb_serviceName="promotionService" hb_permission="promotion.promotionPeriods" {
+component displayname="Promotion Period" entityname="SlatwallPromotionPeriod" table="SwPromotionPeriod" persistent="true" extends="HibachiEntity" cacheuse="transactional" hb_serviceName="promotionService" hb_permission="promotion.promotionPeriods" hb_processContexts="duplicatePromotionPeriod" {
 	
 	// Persistent Properties
 	property name="promotionPeriodID" ormtype="string" length="32" fieldtype="id" generator="uuid" unsavedvalue="" default="";
+	property name="promotionPeriodName" ormtype="string"; 	
 	property name="startDateTime" ormtype="timestamp" hb_formatType="dateTime" hb_nullRBKey="define.forever";
 	property name="endDateTime" ormtype="timestamp" hb_formatType="dateTime" hb_nullRBKey="define.forever";
 	property name="maximumUseCount" ormtype="integer" notnull="false"  hb_nullRBKey="define.unlimited";
@@ -73,7 +74,22 @@ component displayname="Promotion Period" entityname="SlatwallPromotionPeriod" ta
 	
  	// Non-persistent properties
 	property name="currentFlag" type="boolean" persistent="false"; 
- 
+ 	property name="isDeletableFlag" type="boolean" persistent="false"; 
+ 	
+ 	public boolean function getIsDeletableFlag(){
+ 		if (getCurrentFlag() == true && getPromotion().getPromotionAppliedOrdersCount() > 0){
+ 			return false;
+ 		}
+		return true;
+ 	}
+ 	
+ 	public boolean function hasMaximumAccountUseCount(){
+ 		return !isNull(this.getMaximumAccountUseCount()) && this.getMaximumAccountUseCount() gt 0;
+ 	}
+ 	
+ 	public boolean function hasMaximumUseCount(){
+ 		return !isNull(this.getMaximumUseCount()) && this.getMaximumUseCount() gt 0;
+ 	}
  
  	public boolean function isCurrent() {
 		var currentDateTime = now();
@@ -114,19 +130,19 @@ component displayname="Promotion Period" entityname="SlatwallPromotionPeriod" ta
 	
 	// Promotion Rewards (one-to-many)
 	public void function addPromotionReward(required any promotionReward) {
-	   arguments.promotionReward.setPromotion(this);
+	   arguments.promotionReward.setPromotionPeriod(this);
 	}
 	
 	public void function removePromotionReward(required any promotionReward) {
-		arguments.promotionReward.removePromotion(this);
+		arguments.promotionReward.removePromotionPeriod(this);
 	}
 	
 	// Promotion Qualifiers (one-to-many)    
 	public void function addPromotionQualifier(required any promotionQualifier) {    
-		arguments.promotionQualifier.setPromotion( this );    
+		arguments.promotionQualifier.setPromotionPeriod( this );    
 	}    
 	public void function removePromotionQualifier(required any promotionQualifier) {    
-		arguments.PromotionQualifier.removePromotion( this );    
+		arguments.PromotionQualifier.removePromotionPeriod( this );    
 	}
 	
 	// =============  END:  Bidirectional Helper Methods ===================

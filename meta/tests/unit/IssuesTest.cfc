@@ -46,35 +46,15 @@
 Notes:
 
 */
-component extends="SlatwallUnitTestBase" {
-
-	public void function issue_1097() {
+component extends="SlatwallUnitTestBase"{
 		
-		var product = entityNew("SlatwallProduct");
-		
-		productData = {
-			productName = "My Product",
-			productType = {
-				productTypeID = "444df2f7ea9c87e60051f3cd87b435a1"
-			}
-		};
-		
-		product.populate( productData );
-		
-		entitySave( product );
-		
-		ormFlush();
-		
-		entityDelete( product );
-		
-		ormFlush();
-	}
-	
+	/**
+	* @test
+	*/
 	public void function issue_1296() {
 		
 		var smartList = request.slatwallScope.getService("productService").getProductSmartList();
 		
-		// This test can only run if there are products in the database
 		if(smartList.getRecordsCount() >= 2) {
 			smartList.setPageRecordsShow(1);
 		
@@ -87,7 +67,10 @@ component extends="SlatwallUnitTestBase" {
 			assert(productOne.getProductID() neq productTwo.getProductID());	
 		}
 	}
-	
+		
+	/**
+	* @test
+	*/
 	public void function issue_1329() {
 		
 		var smartList = request.slatwallScope.getService("productService").getProductSmartList();
@@ -97,7 +80,10 @@ component extends="SlatwallUnitTestBase" {
 		smartList.getPageRecords();
 		
 	}
-
+	
+	/**
+	* @test
+	*/
 	public void function issue_1331() {
 		
 		var product = request.slatwallScope.getService("productService").newProduct();
@@ -107,22 +93,11 @@ component extends="SlatwallUnitTestBase" {
 		assertFalse( product.isProcessable('addOptionGroup') );
 	}
 	
-	public void function issue_1335() {
 
-		var skuCurrency = entityNew("SlatwallSkuCurrency");
-
-		skuCurrency.setPrice( -20 );
-		skuCurrency.setListPrice( 'test' );
 		
-		skuCurrency.validate(context="save");
-		
-		assert( skuCurrency.hasError('price') );
-		assert( skuCurrency.hasError('listPrice') );
-		
-		assert( right( skuCurrency.getError('price')[1], 8) neq "_missing");
-		assert( right( skuCurrency.getError('listPrice')[1], 8) neq "_missing");
-	}
-	
+	/**
+	* @test
+	*/
 	public void function issue_1348() {
 		var product = entityNew("SlatwallProduct");
 		var sku = entityNew("SlatwallSku");
@@ -136,12 +111,40 @@ component extends="SlatwallUnitTestBase" {
 		assert( sku.hasError('price') );
 		assert( right( sku.getError('price')[1], 8) neq "_missing");
 	}
-	
-	public void function issue_1376() {
 		
+	/**
+	* @test
+	*/
+	public void function two_accounts_with_same_primary_email_cannot_be_saved() {
+		//GH issue 1376
 		var accountService = request.slatwallScope.getService("accountService");
 		
 		var accountData = {
+			firstName = "1376",
+			lastName = "Issue",
+			primaryPhoneNumber={
+				accountPhoneNumberID="",
+				phoneNumber = "1234567890"	
+			},
+			primaryEmailAddress={
+				accountEmailAddressID="",
+				emailAddress = "issue1376@github.com"
+			}
+		};
+		 
+		var account = createPersistedTestEntity('account',accountData); 
+		
+		var accountAuthenticationdata ={
+			accountAuthenticationID="",
+			account={
+				accountID=account.getAccountID()
+			}
+		};
+		var accountAuthentication = createPersistedTestEntity('accountAuthentication',accountAuthenticationData);
+		
+		var accountHasErrors = account.hasErrors();
+		
+		var processData = {
 			firstName = "1376",
 			lastName = "Issue",
 			phoneNumber = "1234567890",
@@ -151,35 +154,23 @@ component extends="SlatwallUnitTestBase" {
 			password = "issue1376",
 			passwordConfirm = "issue1376"
 		};
-		 
-		var account = entityNew("SlatwallAccount");
 		
-		account = accountService.processAccount(account, accountData, 'create'); 
-		var accountHasErrors = account.hasErrors();
+		var accountData2 = {
+			accountID=""
+		};
 		
-		ormFlush();
-		
-		var account2 = entityNew("SlatwallAccount");
-		accountData.firstName="1376 - 2";
-		
-		account2 = accountService.processAccount(account2, accountData, 'create');
-		
+		accountData2.firstName="1376 - 2";
+		var account2 = createTestEntity('account',accountData2);
+		account2 = accountService.processAccount(account2, processData, 'create');
 		var account2HasErrors = account2.hasErrors();
-		
-		account.setPrimaryEmailAddress(javaCast("null",""));
-		account.setPrimaryPhoneNumber(javaCast("null",""));
-		account2.setPrimaryEmailAddress(javaCast("null",""));
-		account2.setPrimaryPhoneNumber(javaCast("null",""));
-		
-		entityDelete( account );
-		entityDelete (account2 );
-		
-		ormFlush();
 		
 		assertFalse(accountHasErrors);
 		assert(account2HasErrors);
 	}
-
+	
+	/**
+	* @test
+	*/
 	public void function issue_1604() {
 		
 		var order = request.slatwallScope.getCart();
@@ -188,7 +179,10 @@ component extends="SlatwallUnitTestBase" {
 			
 		assert(!isNull(order));
 	}
-	
+		
+	/**
+	* @test
+	*/
 	public void function issue_1690() {
 		
 		var product  = request.slatwallScope.newEntity("Product");
@@ -199,7 +193,10 @@ component extends="SlatwallUnitTestBase" {
 			request.slatwallScope.saveEntity( product );
 		}
 	}
-	
+		
+	/**
+	* @test
+	*/
 	public void function issue_1690_2() {
 		var product  = request.slatwallScope.newEntity("Product");
 		request.slatwallScope.saveEntity( product );

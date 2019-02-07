@@ -31,8 +31,7 @@ component output="false" accessors="true" extends="HibachiService" {
 		if(structKeyExists(bundle, arguments.key)) {
 			return bundle[ arguments.key ];
 		}
-		
-		// Because the value was not found, we can add this to the checkedKeys, and setup the original Kye
+		// Because the value was not found, we can add this to the checkedKeys, and setup the original Key
 		arguments.checkedKeys = listAppend(arguments.checkedKeys, arguments.key & "_" & arguments.locale & "_missing");
 		if(!structKeyExists(arguments, "originalKey")) {
 			arguments.originalKey = arguments.key;
@@ -51,7 +50,6 @@ component output="false" accessors="true" extends="HibachiService" {
 		// Recursivly step the key back with the word 'define' replacing the previous.  Basically Look for just the "xxx.yyy.define.zzz" version of the end key and then "yyy.define.zzz" and then "define.zzz"
 		if ( listLen(arguments.key, ".") >= 3 && listGetAt(arguments.key, listLen(arguments.key, ".") - 1, ".") eq "define" ) {
 			var newKey = replace(arguments.key, "#listGetAt(arguments.key, listLen(arguments.key, ".") - 2, ".")#.define", "define", "one");
-			
 			return getRBKey(newKey, arguments.locale, arguments.checkedKeys, arguments.originalKey);
 		} else if( listLen(arguments.key, ".") >= 2 && listGetAt(arguments.key, listLen(arguments.key, ".") - 1, ".") neq "define" ) {
 			var newKey = replace(arguments.key, "#listGetAt(arguments.key, listLen(arguments.key, ".") - 1, ".")#.", "define.", "one");
@@ -87,9 +85,18 @@ component output="false" accessors="true" extends="HibachiService" {
 				// No RB File Found
 			}
 			
+			
+			
 			// Get whatever resource bundle is in the custom config directory
 			try {
 				structAppend(thisRB, javaRB.getResourceBundle(expandPath("/#getApplicationValue('applicationKey')#/custom/config/resourceBundles/#arguments.locale#.properties")), true);
+			} catch (any e) {
+				// No RB File Found
+			}
+			
+			// Get the resource bundle from the custom directory
+			try {
+				structAppend(thisRB, javaRB.getResourceBundle(expandPath("/#getApplicationValue('applicationKey')#/custom/resourceBundles/#arguments.locale#.properties")), true);
 			} catch (any e) {
 				// No RB File Found
 			}

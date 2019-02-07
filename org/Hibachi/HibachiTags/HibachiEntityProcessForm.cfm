@@ -1,5 +1,7 @@
+<cfimport prefix="hb" taglib="../../../org/Hibachi/HibachiTags" />
 <cfif thisTag.executionMode is "start">
 	<cfparam name="attributes.hibachiScope" type="any" default="#request.context.fw.getHibachiScope()#" />
+	<cfparam name="attributes.csrf" type="string" default="#request.context.csrf#" />
 	<cfparam name="attributes.entity" type="any" />
 	<cfparam name="attributes.disableProcess" type="boolean" default="false" />
 	<cfparam name="attributes.disableProcessText" type="string" default="" />
@@ -16,21 +18,34 @@
 	<cfparam name="attributes.fRenderItem" type="string" default="#request.context.entityActionDetails.fRenderItem#">
 	<cfparam name="attributes.sRedirectQS" type="string" default="#request.context.entityActionDetails.sRedirectQS#">
 	<cfparam name="attributes.fRedirectQS" type="string" default="#request.context.entityActionDetails.fRedirectQS#">
+	<cfparam name="attributes.forceSSLFlag" type="boolean" default="false" />
 	
-	<cfset formAction = "?s=1" />
+	<!--- Make sure we don't have a stale token (this will happen when validation fails) --->
+	<cfif !CSRFVerifyToken(attributes.csrf, "hibachiCSRFToken")>
+		<cfset attributes.csrf = CSRFGenerateToken("hibachiCSRFToken", false) />
+	</cfif> 
+	
+	<cfset formAction ="">
+	
+	<cfif attributes.forceSSLFlag AND (findNoCase("off", CGI.HTTPS) OR NOT CGI.SERVER_PORT_SECURE)>
+		<cfset formAction &= "https://#cgi.SERVER_NAME##attributes.hibachiScope.getApplicationValue('baseURL')#/" >
+	</cfif>
+	
+	<cfset formAction &= "?s=1" />
 	
 	<cfif len(attributes.processActionQueryString)>
 		<cfset formAction &= "&#attributes.processActionQueryString#" />
 	</cfif>
-	
+
 	<cfif len(attributes.processActionHash)>
 		<cfset formAction &= "###attributes.processActionHash#" />
 	</cfif>
-	
+
 	<cfoutput>
-		<form method="post" action="#formAction#" class="form-horizontal" enctype="#attributes.enctype#">
+		<form method="post" action="#formAction#" class="form-horizontal" enctype="#attributes.enctype#" id="#replaceNoCase(replaceNoCase(lcase(attributes.processAction),':','','all'),'.','','all')#_#lcase(attributes.processContext)#">
 			<input type="hidden" name="#request.context.fw.getAction()#" value="#attributes.processAction#" />
 			<input type="hidden" name="processContext" value="#attributes.processContext#" />
+			<input type="hidden" name="csrf" value="#attributes.csrf#" />
 			<input type="hidden" name="#attributes.entity.getPrimaryIDPropertyName()#" value="#attributes.entity.getPrimaryIDValue()#" />
 			<input type="hidden" name="preProcessDisplayedFlag" value="1" />
 			<cfif len(attributes.sRedirectURL)><input type="hidden" name="sRedirectURL" value="#attributes.sRedirectURL#" /></cfif>
@@ -41,35 +56,37 @@
 			<cfif len(attributes.fRedirectAction)><input type="hidden" name="fRedirectAction" value="#attributes.fRedirectAction#" /></cfif>
 			<cfif len(attributes.fRenderItem)><input type="hidden" name="fRenderItem" value="#attributes.fRenderItem#" /></cfif>
 			<cfif len(attributes.fRedirectQS)><input type="hidden" name="fRedirectQS" value="#attributes.fRedirectQS#" /></cfif>
-			
+
 			<!--- Additional Model Header --->
 			<cfif structKeyExists(request.context, "modal") and request.context.modal>
-				<div class="modal-header">
-					<a class="close" data-dismiss="modal">&times;</a>
-					<h3>#request.context.pageTitle#</h3>
-				</div>
-				<div class="modal-body">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<div class="modal-header">
+							<a class="close" data-dismiss="modal">&times;</a>
+							<h3>#request.context.pageTitle#</h3>
+						</div>
+						<div class="modal-body">
 			</cfif>
 			<!--- END: Additional Model Header --->
-				
+
 	</cfoutput>
 <cfelse>
 	<cfoutput>
-		
+
 			<!--- Additional Model Footer --->
 			<cfif structKeyExists(request.context, "modal") and request.context.modal>
+					</div>
+					<div class="modal-footer">
+						<cfif attributes.edit>
+							<a href="##" class="btn btn-default s-remove" data-dismiss="modal"><span class="glyphicon glyphicon-remove icon-white"></span> #attributes.hibachiScope.rbKey('define.cancel')#</a>
+							<hb:HibachiActionCaller type="button" action="##" class="btn btn-success" icon="ok icon-white" text="#attributes.hibachiScope.rbKey( 'entity.#attributes.entity.getClassName()#.process.#attributes.processContext#' )#" disabled="#attributes.disableProcess#" disabledText="#attributes.disableProcessText#">
+						</cfif>
+					</div>
 				</div>
-				<div class="modal-footer">
-					<cfif attributes.edit>
-						<div class="btn-group">
-							<a href="##" class="btn btn-inverse" data-dismiss="modal"><i class="icon-remove icon-white"></i> #attributes.hibachiScope.rbKey('define.cancel')#</a>
-							<cf_HibachiActionCaller type="button" action="##" class="btn-success" icon="ok icon-white" text="#attributes.hibachiScope.rbKey( 'entity.#attributes.entity.getClassName()#.process.#attributes.processContext#' )#" disabled="#attributes.disableProcess#" disabledText="#attributes.disableProcessText#">
-						</div>
-					</cfif>
-				</div>
+			</div>
 			</cfif>
 			<!--- END: Additional Model Footer --->
-				
+
 		</form>
 	</cfoutput>
 </cfif>

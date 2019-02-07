@@ -4,6 +4,7 @@
 *.zip
 *.lic
 *.pfx
+#custom/
 _notes/
 aspnet_client/
 settings.xml
@@ -13,3 +14,5 @@ settings.xml/
 logs/
 WEB-INF
 .rdsTempFiles/
+node_modules
+docker-compose.yml

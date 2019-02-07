@@ -49,25 +49,98 @@ Notes:
 <cfcomponent accessors="true" extends="HibachiDAO">
 	
 	<cfscript>
-		public array function getAttributeSets(required array attributeSetTypeCode,required array productTypeIDs){
-			var hql = " FROM SlatwallAttributeSet sas
-						WHERE (exists(FROM sas.attributes sa WHERE sa.activeFlag = 1)
-							AND sas.attributeSetType.systemCode IN (:attributeSetTypeCode)) ";
-			if(arrayLen(arguments.productTypeIDs)){
-				hql &= " AND (sas.globalFlag = 1
-							OR exists(FROM sas.attributeSetAssignments asa WHERE asa.productTypeID IN (:productTypeIDs)))";
-			} else {
-				hql &= " AND sas.globalFlag = 1";
-			}			 
-			hql &= " ORDER BY sas.attributeSetType.systemCode ASC, sas.sortOrder ASC";
+		public void function updateNextDeliveryScheduleDate(required string productID, required any nextDeliveryScheduleDate){
+			var q = new query();
 			
-			// TODO: Remove this conditional when railo and ACF match how they handle arrays for 'IN' clause
-			if(arrayLen(arguments.productTypeIDs)){
-				var returnQuery = ormExecuteQuery(hql, {productTypeIDs=arguments.productTypeIDs, attributeSetTypeCode=arrayToList(arguments.attributeSetTypeCode)});
-			} else {
-				var returnQuery = ormExecuteQuery(hql, {attributeSetTypeCode=arguments.attributeSetTypeCode});
-			}
-			return returnQuery;
+			q.addParam(name="productID",value=arguments.productID);
+			q.addParam(name="nextDeliveryScheduleDate",value=arguments.nextDeliveryScheduleDate,cfsqltype="cf_sql_timestamp");
+			
+			var sql = "UPDATE swproduct set nextDeliveryScheduleDate=:nextDeliveryScheduleDate where productID = :productID";
+			
+			q.execute(sql=sql);
+		}
+		
+		public numeric function getCurrentMargin(required string productID){
+			return ORMExecuteQuery('
+				SELECT COALESCE((COALESCE(sku.price,0) - COALESCE(product.calculatedAverageCost,0)) / COALESCE(sku.price,0),0)
+				FROM SlatwallSku sku
+				LEFT JOIN sku.product product
+				WHERE product.productID=:productID
+			',{productID=arguments.productID},true);
+		}
+		
+		public any function getAverageCost(required string productID){
+				
+			return ORMExecuteQuery(
+				'SELECT COALESCE(AVG(i.cost/i.quantityIn),0)
+				FROM SlatwallInventory i 
+				LEFT JOIN i.stock stock
+				LEFT JOIN stock.sku sku
+				LEFT JOIN sku.product product
+				WHERE product.productID=:productID
+				',
+				{productID=arguments.productID},
+				true
+			);
+		}
+		
+		public any function getAverageLandedCost(required string productID){
+			
+			return ORMExecuteQuery(
+				'SELECT COALESCE(AVG(i.landedCost/i.quantityIn),0)
+				FROM SlatwallInventory i 
+				LEFT JOIN i.stock stock
+				LEFT JOIN stock.sku sku
+				LEFT JOIN sku.proudct product
+				WHERE product.productID=:productID
+				',
+				{productID=arguments.productID},
+				true
+			);
+		}
+		
+        public any function getChildrenProductTypeIDs(required any productType){
+            return ormExecuteQuery(
+                'Select productTypeID from #getApplicationKey()#ProductType
+                 where productTypeNamePath<>:productTypeNamePath
+                 and productTypeNamePath like :productTypeNamePathLike',
+                 {
+                    productTypeNamePath=productType.getProductTypeNamePath(),
+                    productTypeNamePathLike=productType.getProductTypeNamePath() & '%'
+                 }
+            );
+        }
+
+		public void function updateChildrenProductTypeNamePaths(required array productTypeIDs, required string previousProductTypeNamePath, required string newProductTypeNamePath ){
+			var queryService = new query();
+			arguments.productTypeIDsList = listQualify(arrayToList(arguments.productTypeIDs, ","),"'",",");
+			var sql = "UPDATE SwProductType pt SET productTypeNamePath=REPLACE(pt.productTypeNamePath,'#arguments.previousProductTypeNamePath#','#arguments.newProductTypeNamePath#') Where pt.productTypeID IN (#arguments.productTypeIDsList#) ";
+			queryService.execute(sql=sql);
+		}
+		
+		public void function setSkusAsInactiveByProduct(required any product){
+			setSkusAsInactiveByProductID(arguments.product.getProductID());
+		}
+		
+		public void function setSkusAsInactiveByProductID(required string productID){
+			var updateQuery = new Query();
+			var sql = '
+				UPDATE SwSku
+				SET activeFlag=0, publishedFlag=0
+				WHERE productID = :productID
+			';
+			updateQuery.addParam(name="productID",value=arguments.productID,cfsqltype="cf_sql_varchar");
+			updateQuery.execute(sql=sql);
+		}
+		
+		public numeric function getProductRating(required any product){
+			return OrmExecuteQuery('
+				SELECT COALESCE(avg(pr.rating), 0)
+				FROM SlatwallProductReview pr 
+				WHERE pr.product = :product
+				AND pr.activeFlag = 1
+				',{product=arguments.product},true
+			);
 		}
 		
 		public void function loadDataFromFile(required string fileURL, string textQualifier = ""){
@@ -436,6 +509,92 @@ Notes:
 			return result;
 		}
 	</cfscript>
+	
+	<cffunction name="removeProductFromRelatedProducts">
+		<cfargument name="productID" type="string" required="true" >
+		
+		<cfset var rs = "" />
+		
+		<cfquery name="rs">
+			DELETE FROM
+				SwRelatedProduct
+			WHERE
+				productID = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.productID#" />
+			  OR
+			  	relatedProductID = <cfqueryparam cfsqltype="cf_sql_varchar" value="#arguments.productID#" />
+		</cfquery>
+	</cffunction>
 	 
+	<cffunction name="updateProductProductType" hint="Moves all products from one product type to another">
+		<cfargument name="fromProductTypeID" type="string" required="true" >
+		<cfargument name="toProductTypeID" type="string" required="true" >
+		<cfquery name="local.updateProduct" >
+			UPDATE SwProduct 
+			SET productTypeID = <cfqueryparam value="#arguments.toProductTypeID#" cfsqltype="cf_sql_varchar" >
+			WHERE productTypeID = <cfqueryparam value="#arguments.fromProductTypeID#" cfsqltype="cf_sql_varchar" >
+		</cfquery>
+	</cffunction>
+	
+	<cffunction name="getAvailableSkuOptions">
+		<cfargument name="productID" type="string" required="true" >
+		<cfargument name="skuOptionIdArray" type="array" >
+		<cfargument name="locationID" type="string" >
+		<cfquery name="local.query" >
+			SELECT
+				GROUP_CONCAT(o.optionID) as optionIDs,
+				GROUP_CONCAT(o.optionName) as optionNames 
+			FROM swSku s
+			INNER JOIN swSkuOption so ON s.skuID = so.skuID
+			INNER JOIN swOption o ON so.optionID = o.optionID
+			INNER JOIN swOptionGroup og ON o.optionGroupID = og.optionGroupID
+			<cfif structKeyExists(arguments,'locationID') AND NOT isNull(arguments.locationID)>
+			INNER JOIN swSkuLocationQuantity sq ON s.skuID = sq.skuID
+			</cfif>
+			WHERE 
+				s.calculatedQATS > 0
+			AND
+				s.activeFlag = 1
+			AND
+				s.publishedFlag = 1
+			AND 
+				s.productID = <cfqueryparam value="#arguments.productID#" cfsqltype="cf_sql_varchar" >
+			<cfif structKeyExists(arguments,'locationID') AND NOT isNull(arguments.locationID)>
+			AND
+				sq.calculatedQATS > 0
+			</cfif>
+			GROUP BY skuCode
+			<cfif NOT isNull(skuOptionIDArray) AND arrayLen(skuOptionIDArray) >
+				<cfset var counter = 1 />
+				<cfloop array="#skuOptionIDArray#" index="local.optionID">
+					<cfif counter EQ 1>
+						HAVING optionIDs LIKE <cfqueryparam value="%#optionID#%" cfsqltype="cf_sql_varchar" >
+					<cfelse>
+						AND optionIDs LIKE <cfqueryparam value="%#optionID#%" cfsqltype="cf_sql_varchar" >
+					</cfif>
+					<cfset counter++ />
+				</cfloop>
+			</cfif>
+		</cfquery>
+		<cfreturn local.query>
+	</cffunction>
+
+	<cffunction name="getFirstScheduledSku" hint="Return the event sku with the earliest startDateTime">
+		<cfargument name="productScheduleID" type="string" required ="true">
+		
+		<cfreturn ormExecuteQuery("FROM #getApplicationKey()#Sku s WHERE s.productSchedule.productScheduleID = :productScheduleID ORDER BY s.eventStartDateTime ASC", {productScheduleID=arguments.productScheduleID},false, {maxresults=1})[1] />
+	</cffunction>
+		
+	<cffunction name="getProductHasRelatedProduct" access="public">
+		<cfargument name="productID" type="string" required="true" />
+		<cfargument name="relatedProductID" type="string" required="true">
+		<cfreturn ORMExecuteQuery('
+			select count(pr) from SlatwallProductRelationship pr
+			where product.productID = :productID
+			  and relatedProduct.productID = :relatedProductID
+			',
+			{productID=arguments.productID,relatedProductID=arguments.relatedProductID},
+			true
+			)>
+	</cffunction>
 </cfcomponent>
 

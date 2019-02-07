@@ -67,7 +67,7 @@
 		<cfset orderFulfillmentSmartList.addInFilter("order.orderStatusType.systemCode", "ostNew,ostProcessing,ostOnHold") />
 		
 		<!--- Setup Local File Name --->
-		<cfset localFullFilePath = getTempDirectory() & "endiciaPush.txt" />
+		<cfset var localFullFilePath = getTempDirectory() & "endiciaPush.txt" />
 		
 		<!--- Create a line Array that will be used to write to the file --->
 		<cfset var lineArray = arrayNew(1) />
@@ -102,7 +102,7 @@
 		
 		<!--- Loop over order fulfillments and append each one to a new line in the file --->
 		<cfset var orderFulfillment = "" />
-		<cfloop array="#orderFulfillmentSmartList.getRecords()#" index="orderFulfillment">
+		<cfloop array="#orderFulfillmentSmartList.getRecords()#" index="local.orderFulfillment">
 			<cftry>
 				
 				<!--- Create fulfillment line --->
@@ -155,7 +155,7 @@
 		<cftry>
 			
 			<!---[SEVER CONDITIONAL]--->
-			<cfif structKeyExists(server, "railo")>
+			<cfif structKeyExists(server, "railo") || structKeyExists(server, "lucee")>
 				<cfftp action="putfile" server="#integration.setting('syncFTPSite')#" username="#integration.setting('syncFTPSiteUsername')#" password="#integration.setting('syncFTPSitePassword')#" port="#integration.setting('syncFTPSitePort')#" remotefile="#remoteFullFilePath#" localfile="#localFullFilePath#">
 			<cfelse>
 				<cfinclude template="cfftp_acfonly.cfm" />

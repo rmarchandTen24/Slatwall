@@ -46,24 +46,37 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../../tags" />
+<cfimport prefix="hb" taglib="../../../../org/Hibachi/HibachiTags" />
+
 <cfparam name="rc.sitesArray" />
 
 <cfoutput>
-	<cf_SlatwallSettingTable showFilterEntities="#arrayLen(rc.sitesArray)#" showInheritance="false">
-		<cf_SlatwallSetting settingName="productShowDetailWhenNotPublishedFlag" />
-		<cf_SlatwallSetting settingName="productImageDefaultExtension" />
-		<cf_SlatwallSetting settingName="productImageOptionCodeDelimiter" />
-		<cf_SlatwallSetting settingName="productTitleString" />
-		<cf_SlatwallSetting settingName="productHTMLTitleString" />
-		<cf_SlatwallSetting settingName="productMetaDescriptionString" />
-		<cf_SlatwallSetting settingName="productMetaKeywordsString" />
-		<cf_SlatwallSetting settingName="productAutoApproveReviewsFlag" />
+	<swa:SlatwallSettingTable showFilterEntities="#arrayLen(rc.sitesArray)#" showInheritance="false">
+		<swa:SlatwallSetting settingName="productShowDetailWhenNotPublishedFlag" />
+		<swa:SlatwallSetting settingName="productImageDefaultExtension" /> 
+		<swa:SlatwallSetting settingName="productImageOptionCodeDelimiter" />
+		<swa:SlatwallSetting settingName="productTitleString" />
+		<swa:SlatwallSetting settingName="productHTMLTitleString" />
+		<swa:SlatwallSetting settingName="productMetaDescriptionString" />
+		<swa:SlatwallSetting settingName="productMetaKeywordsString" />
+		<swa:SlatwallSetting settingName="productAutoApproveReviewsFlag" />	
+		<swa:SlatwallSetting settingName="productImageSmallWidth"  />
+		<swa:SlatwallSetting settingName="productImageSmallHeight"/>
+		<swa:SlatwallSetting settingName="productImageMediumWidth"/>
+		<swa:SlatwallSetting settingName="productImageMediumHeight"/>
+		<swa:SlatwallSetting settingName="productImageLargeWidth" />
+		<swa:SlatwallSetting settingName="productImageLargeHeight" />
+		<swa:SlatwallSetting settingName="productImageXLargeWidth" />
+		<swa:SlatwallSetting settingName="productImageXLargeHeight" />
+		<swa:SlatwallSetting settingName="productListingImageHeight" />
+		<swa:SlatwallSetting settingName="productListingImageWidth" />
 		
 		<!--- Site Specific Settings --->
 		<cfloop array="#rc.sitesArray#" index="site">
-			<cf_SlatwallSetting settingName="productDisplayTemplate" settingFilterEntities="#[site]#" />
+			<swa:SlatwallSetting settingName="productDisplayTemplate" settingFilterEntities="#[site]#" />
 		</cfloop>
-	</cf_SlatwallSettingTable>
+	</swa:SlatwallSettingTable>
 	
 </cfoutput>
 

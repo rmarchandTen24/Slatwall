@@ -50,26 +50,290 @@ Notes:
 component accessors="true" output="false" displayname="FedEx" implements="Slatwall.integrationServices.ShippingInterface" extends="Slatwall.integrationServices.BaseShipping" {
 
 	public any function init() {
+		super.init();
+		variables.trackingURL = "http://www.fedex.com/Tracking?tracknumber_list=${trackingNumber}";
+		variables.testUrl = "https://gatewaybeta.fedex.com/xml";
+		variables.productionUrl = "https://gateway.fedex.com/xml";
 		// Insert Custom Logic Here 
 		variables.shippingMethods = {
 			FIRST_OVERNIGHT="FedEx First Overnight",
 			PRIORITY_OVERNIGHT="FedEx Priority Overnight",
 			STANDARD_OVERNIGHT="FedEx Standard Overnight",
 			FEDEX_2_DAY="FedEx 2 Day",
+			FEDEX_2_DAY_AM="FedEx 2Day A.M.",
 			FEDEX_EXPRESS_SAVER="FedEx Express Saver",
 			FEDEX_GROUND="FedEx Ground",
+			GROUND_HOME_DELIVERY="FedEx Ground Home Delivery",
 			INTERNATIONAL_ECONOMY="FedEx International Economy",
 			INTERNATIONAL_PRIORITY="FedEx International Priority"
 		};
 		return this;
 	}
 	
-	public struct function getShippingMethods() {
-		return variables.shippingMethods;
+	public any function getProcessShipmentRequestXmlPacket(required any requestBean){
+		var xmlPacket = "";
+		
+		savecontent variable="xmlPacket" {
+			include "ProcessShipmentRequestTemplate.cfm";
+        }
+        return xmlPacket;
 	}
 	
-	public string function getTrackingURL() {
-		return "http://www.fedex.com/Tracking?tracknumber_list=${trackingNumber}";
+	public any function processShipmentRequest(required any requestBean){
+		// Build Request XML
+		var xmlPacket = getProcessShipmentRequestXmlPacket(arguments.requestBean);
+        
+        var prefix = getPrefix(xmlPacket);
+        
+        var xmlResponse = prefix.fileContent;
+        var responseBean = getShippingProcessShipmentResponseBean(xmlResponse,prefix.Statuscode);
+
+        return responseBean;
+	}
+	
+	private struct function getPrefix(string xmlPacket){
+		var urlString = "";
+		if(setting('testingFlag')) {
+			urlString = variables.testUrl;
+		} else {
+			urlString = variables.productionUrl;
+		}
+		return getResponse(requestPacket=xmlPacket,urlString=urlString);
+	}
+	
+	private any function getShippingProcessShipmentResponseBean(string xmlResponse, string statusCode){
+		var responseBean = new Slatwall.model.transient.fulfillment.ShippingProcessShipmentResponseBean();
+		responseBean.setData(arguments.xmlResponse);
+		responseBean.setStatusCode(arguments.statusCode);
+		
+		
+		//think this is ups specific and may not apply to fedex xml response
+		if(
+			isNull(responseBean.getData()) 
+			|| (
+				!isNull(responseBean.getData()) 
+				&& structKeyExists(responseBean.getData(),'Fault')
+			) 
+		) {
+			responseBean.addMessage(messageName="communicationError", message="An unexpected communication error occured, please notify system administrator.");
+			// If XML fault then log error
+			responseBean.addError("unknown", "An unexpected communication error occured, please notify system administrator.");
+		} else {
+			// Log all messages from FedEx into the response bean
+			if (structKeyExists(arguments.xmlResponse, "ProcessShipmentReply")){
+				for(var i=1; i<=arrayLen(arguments.xmlResponse.ProcessShipmentReply.Notifications); i++) {
+					responseBean.addMessage(
+						messageName=arguments.xmlResponse.ProcessShipmentReply.Notifications[i].Code.xmltext,
+						message=arguments.xmlResponse.ProcessShipmentReply.Notifications[i].Message.xmltext
+					);
+					if(FindNoCase("Error", arguments.xmlResponse.ProcessShipmentReply.Notifications[i].Severity.xmltext)) {
+						responseBean.addError(arguments.xmlResponse.ProcessShipmentReply.Notifications[i].Code.xmltext, arguments.xmlResponse.ProcessShipmentReply.Notifications[i].Message.xmltext);
+					}
+				}
+			}
+		}
+		
+		return responseBean;
+	}
+	
+
+	public any function processShipmentRequestWithOrderDelivery_Create(required any processObject){
+		if(!isNull(arguments.processObject.getContainers())){
+			var packageCount = arrayLen(arguments.processObject.getContainers());
+		}else{
+			var packageCount = 1;
+		}
+		if(packageCount == 0){
+			packageCount = 1;
+		}
+		var processShipmentRequestBean = getTransient("ShippingProcessShipmentRequestBean");
+		processShipmentRequestBean.populateWithOrderFulfillment(arguments.processObject.getOrderFulfillment());
+		processShipmentRequestBean.populateShippingItemsWithOrderDelivery_Create(arguments.processObject, true);
+		processShipmentRequestBean.setPackageCount(packageCount);
+		for(var packageNumber = 1; packageNumber <= packageCount; packageNumber++){
+			processShipmentRequestBean.setPackageNumber(packageNumber);
+			var containers = arguments.processObject.getContainers();
+			if(!isNull(containers) && arrayLen(containers)){
+				processShipmentRequestBean.setContainer(containers[packageNumber]);
+			}
+			
+			if(!structKeyExists(processShipmentRequestBean.getContainer(),'weight') || isNull(processShipmentRequestBean.getContainer().weight)){
+				processShipmentRequestBean.getContainer().weight = NumberFormat(processShipmentRequestBean.getTotalWeight() / packageCount,'.99');
+			}
+			if(isNull(processShipmentRequestBean.getMasterTrackingID()) && !isNull(arguments.processObject.getTrackingNumber())){
+				processShipmentRequestBean.setMasterTrackingID(arguments.processObject.getTrackingNumber());
+			}
+			
+			var responseBean = processShipmentRequest(processShipmentRequestBean);
+			var data =  responseBean.getData();
+			arguments.processObject.getOrderFulfillment().setLastStatusCode(responseBean.getStatusCode());
+			if(
+				(
+					!isNull(responseBean.getData()) 
+					&& structKeyExists(responseBean.getData(),'CSRError')
+				)
+			){
+				arguments.processObject.getOrderFulfillment().setLastMessage(responseBean.getData().CSRError['message']);
+			}else if(
+				(
+					!isNull(responseBean.getData()) 
+					&& structKeyExists(responseBean.getData(),'ProcessShipmentReply')
+				)
+			){
+				arguments.processObject.getOrderFulfillment().setLastMessage(responseBean.getData()['ProcessShipmentReply']['HighestSeverity'].xmlText);
+			}
+			
+	 		//Tracking
+	 		try{
+	 			if(isNull(arguments.processObject.getTrackingNumber())){
+		 			if (structKeyExists(data['ProcessShipmentReply'], 'CompletedShipmentDetail')){
+		 			
+		 				arguments.processObject.setTrackingNumber(data['ProcessShipmentReply']['CompletedShipmentDetail']['MasterTrackingId']['TrackingNumber']['xmlText']);
+		 			
+		 			}else{
+		 				arguments.processObject.setTrackingNumber(responseBean.getTrackingNumber());	
+		 			}
+	 			}
+	 			//Image
+	 			if (structKeyExists(data['ProcessShipmentReply'], 'CompletedShipmentDetail')){
+					var existingLabel = arguments.processObject.getContainerLabel();
+					if(isNull(existingLabel)){
+						existingLabel = '';
+					}else{
+						existingLabel &= ',';
+					}
+	 				arguments.processObject.setContainerLabel(existingLabel & data['ProcessShipmentReply']['CompletedShipmentDetail']['CompletedPackageDetails']['Label']['Parts']['Image']['xmlText']);
+	 			}else{
+	 				arguments.processObject.setContainerLabel(responseBean.getContainerLabel());	
+	 			}
+	 		}catch(any e){
+	 			arguments.processObject.setTrackingNumber(responseBean.getTrackingNumber());
+	 			arguments.processObject.setContainerLabel(responseBean.getContainerLabel());
+	 		}
+		}
+	}
+	
+	public any function processShipmentRequestWithOrderDelivery_generateShippingLabel(required any processObject){
+		if(!isNull(arguments.processObject.getContainers())){
+			var packageCount = arrayLen(arguments.processObject.getContainers());
+		}else{
+			var packageCount = 1;
+		}
+		if(packageCount == 0){
+			packageCount = 1;
+		}
+		
+		var processShipmentRequestBean = getTransient("ShippingProcessShipmentRequestBean");
+		processShipmentRequestBean.populateWithOrderFulfillment(arguments.processObject.getOrderDelivery().getOrderFulfillment());
+		processShipmentRequestBean.populateShippingItemsWithOrderDelivery_GenerateShippingLabel(arguments.processObject, true);
+		processShipmentRequestBean.setPackageCount(packageCount);
+		for(var packageNumber = 1; packageNumber <= packageCount; packageNumber++){
+			processShipmentRequestBean.setPackageNumber(packageNumber);
+			var containers = arguments.processObject.getContainers();
+			if(!isNull(containers) && arrayLen(containers)){
+				processShipmentRequestBean.setContainer(containers[packageNumber]);
+			}
+			
+			if(!structKeyExists(processShipmentRequestBean.getContainer(),'weight') || isNull(processShipmentRequestBean.getContainer().weight)){
+				processShipmentRequestBean.getContainer().weight = NumberFormat(processShipmentRequestBean.getTotalWeight() / packageCount,'.99');
+			}
+			if(isNull(processShipmentRequestBean.getMasterTrackingID()) && !isNull(arguments.processObject.getOrderDelivery().getTrackingNumber())){
+				processShipmentRequestBean.setMasterTrackingID(arguments.processObject.getOrderDelivery().getTrackingNumber());
+			}
+			
+			var responseBean = processShipmentRequest(processShipmentRequestBean);
+			var data =  responseBean.getData();
+			arguments.processObject.getOrderDelivery().getOrderFulfillment().setLastStatusCode(responseBean.getStatusCode());
+			
+			if(
+				(
+					!isNull(responseBean.getData()) 
+					&& structKeyExists(responseBean.getData(),'CSRError')
+				)
+			){
+			
+				arguments.processObject.getOrderDelivery().getOrderFulfillment().setLastMessage(responseBean.getData().CSRError['message']);
+				arguments.processObject.getOrderDelivery().addError('containerLabel',responseBean.getData().CSRError['message']);
+			}else if(
+				(
+					!isNull(responseBean.getData()) 
+					&& structKeyExists(responseBean.getData(),'ProcessShipmentReply')
+				)
+			){
+				arguments.processObject.getOrderDelivery().getOrderFulfillment().setLastMessage(responseBean.getData()['ProcessShipmentReply']['HighestSeverity'].xmlText);
+			}
+			
+	 		//Tracking
+	 		try{
+	 			if(isNull(arguments.processObject.getTrackingNumber())){
+		 			if (structKeyExists(data['ProcessShipmentReply'], 'CompletedShipmentDetail')){
+		 			
+		 				arguments.processObject.getOrderDelivery().setTrackingNumber(data['ProcessShipmentReply']['CompletedShipmentDetail']['MasterTrackingId']['TrackingNumber']['xmlText']);
+		 			
+		 			}else{
+		 				arguments.processObject.getOrderDelivery().setTrackingNumber(responseBean.getTrackingNumber());	
+		 			}
+	 			}
+	 			//Image
+	 			if (structKeyExists(data['ProcessShipmentReply'], 'CompletedShipmentDetail')){
+					var existingLabel = arguments.processObject.getOrderDelivery().getContainerLabel();
+					if(isNull(existingLabel)){
+						existingLabel = '';
+					}else{
+						existingLabel &= ',';
+					}
+	 				arguments.processObject.getOrderDelivery().setContainerLabel(existingLabel & data['ProcessShipmentReply']['CompletedShipmentDetail']['CompletedPackageDetails']['Label']['Parts']['Image']['xmlText']);
+	 			}else{
+	 				arguments.processObject.getOrderDelivery().setContainerLabel(responseBean.getContainerLabel());	
+	 			}
+	 		}catch(any e){
+	 			arguments.processObject.getOrderDelivery().setTrackingNumber(responseBean.getTrackingNumber());
+	 			arguments.processObject.getOrderDelivery().setContainerLabel(responseBean.getContainerLabel());
+	 		}
+		}
+	}
+	
+	private any function getShippingRatesResponseBean(string xmlResponse, string statusCode){
+		var responseBean = new Slatwall.model.transient.fulfillment.ShippingRatesResponseBean();
+		responseBean.setData(arguments.xmlResponse);
+		if(structKeyExists(arguments,'statusCode')){
+			responseBean.setStatusCode(arguments.statusCode);
+		}
+		if(structKeyExists(arguments.xmlResponse,'CSRError')){
+			responseBean.getOrderFulfillment().setLastMessage(arguments.CSRError['message']);
+		//think this is ups specific and may not apply to fedex xml response
+		}else if(isDefined('arguments.xmlResponse.Fault')) {
+			responseBean.addMessage(messageName="communicationError", message="An unexpected communication error occured, please notify system administrator.");
+			// If XML fault then log error
+			responseBean.addError("unknown", "An unexpected communication error occured, please notify system administrator.");
+		} else {
+			// Log all messages from FedEx into the response bean
+			if (structKeyExists(arguments.xmlResponse, "RateReply")){
+				for(var i=1; i<=arrayLen(arguments.xmlResponse.RateReply.Notifications); i++) {
+					responseBean.addMessage(
+						messageName=arguments.xmlResponse.RateReply.Notifications[i].Code.xmltext,
+						message=arguments.xmlResponse.RateReply.Notifications[i].Message.xmltext
+					);
+					if(FindNoCase("Error", arguments.xmlResponse.RateReply.Notifications[i].Severity.xmltext)) {
+						responseBean.addError(arguments.xmlResponse.RateReply.Notifications[i].Code.xmltext, arguments.xmlResponse.RateReply.Notifications[i].Message.xmltext);
+					}
+				}
+				if(!responseBean.hasErrors()) {
+					try{
+						for(var i=1; i<=arrayLen(arguments.xmlResponse.RateReply.RateReplyDetails); i++) {
+							responseBean.addShippingMethod(
+								shippingProviderMethod=arguments.xmlResponse.RateReply.RateReplyDetails[i].ServiceType.xmltext,
+								totalCharge=arguments.xmlResponse.RateReply.RateReplyDetails[i].RatedShipmentDetails.ShipmentRateDetail.TotalNetCharge.Amount.xmltext
+							);
+					
+						}
+					}catch (any e){
+						responseBean.addError("unknown", "An unexpected error occured when retrieving the shipping rates, please notify system administrator.");
+					}
+				}
+			}
+		}
+		return responseBean;
 	}
 	
 	public any function getRates(required any requestBean) {
@@ -80,53 +344,12 @@ component accessors="true" output="false" displayname="FedEx" implements="Slatwa
 		savecontent variable="xmlPacket" {
 			include "RatesRequestTemplate.cfm";
         }
+        var prefix = getPrefix(xmlPacket);
+        var XmlResponse = prefix.fileContent;
+        var responseBean = getShippingRatesResponseBean(XmlResponse,prefix.Statuscode);
         
-        // Setup Request to push to FedEx
-        var httpRequest = new http();
-        httpRequest.setMethod("POST");
-		httpRequest.setPort("443");
-		httpRequest.setTimeout(45);
-		if(setting('testingFlag')) {
-			httpRequest.setUrl("https://gatewaybeta.fedex.com/xml");
-		} else {
-			httpRequest.setUrl("https://gateway.fedex.com/xml");
-		}
-		httpRequest.setResolveurl(false);
-		httpRequest.addParam(type="XML", name="name",value=xmlPacket);
-		
-		var xmlResponse = XmlParse(REReplace(httpRequest.send().getPrefix().fileContent, "^[^<]*", "", "one"));
-		
-		var responseBean = new Slatwall.model.transient.fulfillment.ShippingRatesResponseBean();
-		responseBean.setData(xmlResponse);
-		
-		if(isDefined('xmlResponse.Fault')) {
-			responseBean.addMessage(messageName="communicationError", message="An unexpected communication error occured, please notify system administrator.");
-			// If XML fault then log error
-			responseBean.addError("unknown", "An unexpected communication error occured, please notify system administrator.");
-		} else {
-			// Log all messages from FedEx into the response bean
-			for(var i=1; i<=arrayLen(xmlResponse.RateReply.Notifications); i++) {
-				responseBean.addMessage(
-					messageName=xmlResponse.RateReply.Notifications[i].Code.xmltext,
-					message=xmlResponse.RateReply.Notifications[i].Message.xmltext
-				);
-				if(FindNoCase("Error", xmlResponse.RateReply.Notifications[i].Severity.xmltext)) {
-					responseBean.addError(xmlResponse.RateReply.Notifications[i].Code.xmltext, xmlResponse.RateReply.Notifications[i].Message.xmltext);
-				}
-			}
-			
-			if(!responseBean.hasErrors()) {
-				for(var i=1; i<=arrayLen(xmlResponse.RateReply.RateReplyDetails); i++) {
-					responseBean.addShippingMethod(
-						shippingProviderMethod=xmlResponse.RateReply.RateReplyDetails[i].ServiceType.xmltext,
-						totalCharge=xmlResponse.RateReply.RateReplyDetails[i].RatedShipmentDetails.ShipmentRateDetail.TotalNetCharge.Amount.xmltext
-					);
-				}
-			}
-		}
 		
 		return responseBean;
 	}
 	
 }
-

@@ -1,3 +1,4 @@
+<cfimport prefix="hb" taglib="../../../org/Hibachi/HibachiTags" />
 <cfif thisTag.executionMode is "start">
 	<cfparam name="attributes.hibachiScope" type="any" default="#request.context.fw.getHibachiScope()#" />
 	
@@ -19,6 +20,9 @@
 	<cfparam name="attributes.modal" type="boolean" default="false" />
 	
 	<cfset local.entityName = "" />
+	
+	<!-- make sure recordProcessContext is always lower case -->
+	<cfset attributes.processContext = lCase(attributes.processContext) />
 	
 	<!--- Add the process context to the query string --->
 	<cfset attributes.queryString = listAppend(attributes.queryString, "processContext=#attributes.processContext#", "&") />
@@ -48,6 +52,6 @@
 	
 	<!--- If either no entity object was passed in, or if the entity object that was passed in is in fact processable, then deligate to the action caller for the actual info --->
 	<cfif !isObject(attributes.entity) || (isObject(attributes.entity) && ( !attributes.disabled || !attributes.hideDisabled ) )>
-		<cf_HibachiActionCaller attributecollection="#attributes#" />
+		<hb:HibachiActionCaller attributecollection="#attributes#" />
 	</cfif>
 </cfif>

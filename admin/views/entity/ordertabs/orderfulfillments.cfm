@@ -46,18 +46,31 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../../tags" />
+<cfimport prefix="hb" taglib="../../../../org/Hibachi/HibachiTags" />
+
 <cfparam name="rc.order" type="any" />
 <cfparam name="rc.edit" type="boolean" /> 
 
+<cfset local.collectionOrderFulfillmentList = $.slatwall.getService('orderService').getOrderFulfillmentCollectionList()  >
+	<cfset local.collectionOrderFulfillmentList.setDisplayProperties("fulfillmentMethod.fulfillmentMethodName,fulfillmentCharge,discountAmount,chargeTaxAmount,chargeAfterDiscount,quantityDelivered,quantityUndelivered",{
+	    isVisible=true,
+	    isSearchable=true,
+	    isDeletable=true
+	}) >
+	<cfset local.collectionOrderFulfillmentList.addDisplayProperty(displayProperty="orderFulfillmentID",columnConfig={isVisible=false})>
+	<cfset local.collectionOrderFulfillmentList.addFilter("order.orderID",rc.order.getOrderID())>
+
 <cfoutput>
-	<cf_HibachiListingDisplay smartList="#rc.order.getOrderFulfillmentsSmartList()#"
+	<hb:HibachiListingDisplay collectionList="#local.collectionOrderFulfillmentList#"
 							   recordDetailAction="admin:entity.detailorderfulfillment"
 							   recordEditAction="admin:entity.editorderfulfillment">
-		<cf_HibachiListingColumn tdClass="primary" propertyIdentifier="fulfillmentMethod.fulfillmentMethodName" />
-		<cf_HibachiListingColumn propertyIdentifier="fulfillmentCharge" />
-		<cf_HibachiListingColumn propertyIdentifier="discountAmount" />
-		<cf_HibachiListingColumn propertyIdentifier="chargeAfterDiscount" />
-		<cf_HibachiListingColumn propertyIdentifier="quantityDelivered" />
-		<cf_HibachiListingColumn propertyIdentifier="quantityUndelivered" />
-	</cf_HibachiListingDisplay>
+		<hb:HibachiListingColumn tdClass="primary" propertyIdentifier="fulfillmentMethod.fulfillmentMethodName" />
+		<hb:HibachiListingColumn propertyIdentifier="fulfillmentCharge" />
+		<hb:HibachiListingColumn propertyIdentifier="discountAmount" />
+		<hb:HibachiListingColumn propertyIdentifier="chargeTaxAmount" />
+		<hb:HibachiListingColumn propertyIdentifier="chargeAfterDiscount" />
+		<hb:HibachiListingColumn propertyIdentifier="quantityDelivered" />
+		<hb:HibachiListingColumn propertyIdentifier="quantityUndelivered" />
+	</hb:HibachiListingDisplay>
 </cfoutput>

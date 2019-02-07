@@ -49,20 +49,20 @@ Notes:
 
 <cfset local.scriptHasErrors = false />
 
-<cfdbinfo datasource="#getApplicationValue("datasource")#" username="#getApplicationValue("datasourceUsername")#" password="#getApplicationValue("datasourcePassword")#" type="Tables" name="local.infoTables" pattern="Sw%" />
+<cfdbinfo type="Columns" name="local.accountPaymentColumns" table="SwAccountPayment"  datasource="#getApplicationValue("datasource")#" username="#getApplicationValue("datasourceUsername")#" password="#getApplicationValue("datasourcePassword")#" />
 
 <!--- Update accountPayment and move amount into the AccountPaymentApplied table --->
 <cftry>
-	<cfquery name="local.hasTable" dbtype="query">
+	<cfquery name="local.hasColumn" dbtype="query">
 		SELECT
 			* 
 		FROM
-			infoTables
+			accountPaymentColumns
 		WHERE
-			LOWER(TABLE_NAME) = 'swaccountpaymentapplied'
+			LOWER(COLUMN_NAME) = 'amount'
 	</cfquery>
 	
-	<cfif local.hasTable.recordCount>
+	<cfif local.hasColumn.recordCount>
 		<cfquery name="local.updateData">
 			SELECT
 				accountPaymentID,
@@ -112,8 +112,10 @@ Notes:
 		<!--- Allow nulls in the AccountPayment amount field since we are using AccountPaymentApplied --->
 		<cfif local.hasColumn.recordCount>
 			<cfquery name="local.allowNull">
-				 <cfif getApplicationValue("databaseType") eq "MySQL">
+				<cfif getApplicationValue("databaseType") eq "MySQL">
 					ALTER TABLE SwAccountPayment MODIFY COLUMN amount decimal(19,2) NULL
+				<cfelseif getApplicationValue("databaseType") eq "Oracle10g">
+					ALTER TABLE SwAccountPayment MODIFY (amount decimal(19,2) NULL)
 				<cfelse>
 					ALTER TABLE SwAccountPayment ALTER COLUMN amount decimal(19,2) NULL
 				</cfif>

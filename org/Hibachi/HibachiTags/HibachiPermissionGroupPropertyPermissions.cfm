@@ -1,3 +1,4 @@
+<cfimport prefix="hb" taglib="../../../org/Hibachi/HibachiTags" />
 <cfif thisTag.executionMode is "start">
 	<cfparam name="attributes.hibachiScope" type="struct" default="#request.context.fw.getHibachiScope()#" />
 	<cfparam name="attributes.permissionGroup" type="any" />
@@ -54,8 +55,8 @@
 					
 					<td class="primary"><span class="depth#attributes.depth#" />#attributes.hibachiScope.getService('hibachiService').getEntityObject( attributes.entityName ).getPropertyTitle( propertyName )#</td>
 					<td></td>
-					<td><input type="hidden" name="permissions[#request.context.permissionFormIndex#].allowReadFlag" value=""><input type="checkbox" name="permissions[#request.context.permissionFormIndex#].allowReadFlag" class="hibachi-permission-checkbox" data-hibachi-parentcheckbox="permissions[#attributes.parentIndex#].allowReadFlag" value="1"<cfif not attributes.hibachiScope.getService("hibachiAuthenticationService").authenticateEntityByPermissionGroup('read', attributes.entityName, attributes.permissionGroup)> disabled="disabled"</cfif><cfif (!thisPermission.isNew() && !isNull(thisPermission.getAllowReadFlag()) && thisPermission.getAllowReadFlag()) || (attributes.hibachiScope.getService("hibachiAuthenticationService").authenticateEntityPropertyByPermissionGroup('read', attributes.entityName, propertyName, attributes.permissionGroup))> checked="checked"</cfif>> Read</td>
-					<td><input type="hidden" name="permissions[#request.context.permissionFormIndex#].allowUpdateFlag" value=""><input type="checkbox" name="permissions[#request.context.permissionFormIndex#].allowUpdateFlag" class="hibachi-permission-checkbox" data-hibachi-parentcheckbox="permissions[#attributes.parentIndex#].allowUpdateFlag" value="1"<cfif not attributes.hibachiScope.getService("hibachiAuthenticationService").authenticateEntityByPermissionGroup('update', attributes.entityName, attributes.permissionGroup)> disabled="disabled"</cfif><cfif (!thisPermission.isNew() && !isNull(thisPermission.getAllowUpdateFlag()) && thisPermission.getAllowUpdateFlag()) || (attributes.hibachiScope.getService("hibachiAuthenticationService").authenticateEntityPropertyByPermissionGroup('update', attributes.entityName, propertyName, attributes.permissionGroup))> checked="checked"</cfif>> Update</td>
+					<td><input type="checkbox" name="permissions[#request.context.permissionFormIndex#].allowReadFlag" class="hibachi-permission-checkbox" data-hibachi-parentcheckbox="permissions[#attributes.parentIndex#].allowReadFlag" value="1"<cfif not attributes.hibachiScope.getService("hibachiAuthenticationService").authenticateEntityByPermissionGroup('read', attributes.entityName, attributes.permissionGroup)> disabled="disabled"</cfif><cfif (!thisPermission.isNew() && !isNull(thisPermission.getAllowReadFlag()) && thisPermission.getAllowReadFlag()) || (attributes.hibachiScope.getService("hibachiAuthenticationService").authenticateEntityPropertyByPermissionGroup('read', attributes.entityName, propertyName, attributes.permissionGroup))> checked="checked"</cfif>> Read</td>
+					<td><input type="checkbox" name="permissions[#request.context.permissionFormIndex#].allowUpdateFlag" class="hibachi-permission-checkbox" data-hibachi-parentcheckbox="permissions[#attributes.parentIndex#].allowUpdateFlag" value="1"<cfif not attributes.hibachiScope.getService("hibachiAuthenticationService").authenticateEntityByPermissionGroup('update', attributes.entityName, attributes.permissionGroup)> disabled="disabled"</cfif><cfif (!thisPermission.isNew() && !isNull(thisPermission.getAllowUpdateFlag()) && thisPermission.getAllowUpdateFlag()) || (attributes.hibachiScope.getService("hibachiAuthenticationService").authenticateEntityPropertyByPermissionGroup('update', attributes.entityName, propertyName, attributes.permissionGroup))> checked="checked"</cfif>> Update</td>
 					<td></td>
 					<td></td>
 					<td></td>
@@ -71,7 +72,7 @@
 			</tr>
 		</cfloop>
 		<cfloop array="#entityProperties#" index="propertyName">
-			<tr class="#rowClass#" onClick="$('.permission#lcase(subPropertyInheriting[ propertyName ])#').toggle();">
+			<tr class="#rowClass#" onClick="$('.permission#lcase(subPropertyInheriting[ propertyName ])#').toggleClass('hide');">
 				<cfif attributes.edit>
 					<cfset request.context.permissionFormIndex++ />
 					
@@ -97,7 +98,7 @@
 					<td></td>
 				</cfif>
 			</tr>
-			<cf_HibachiPermissionGroupPropertyPermissions permissionGroup="#attributes.permissionGroup#" entityName="#subPropertyInheriting[ propertyName ]#" entityPermissionDetails="#attributes.entityPermissionDetails#" parentIndex="#request.context.permissionFormIndex#" depth="#attributes.depth + 1#" edit="#attributes.edit#" />
+			<hb:HibachiPermissionGroupPropertyPermissions permissionGroup="#attributes.permissionGroup#" entityName="#subPropertyInheriting[ propertyName ]#" entityPermissionDetails="#attributes.entityPermissionDetails#" parentIndex="#request.context.permissionFormIndex#" depth="#attributes.depth + 1#" edit="#attributes.edit#" />
 		</cfloop>
 	</cfoutput>
 </cfif>

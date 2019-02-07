@@ -50,20 +50,14 @@ component displayname="Integration" entityname="SlatwallIntegration" table="SwIn
 	
 	// Persistent Properties
 	property name="integrationID" ormtype="string" length="32" fieldtype="id" generator="uuid" unsavedvalue="" default="";
-	property name="integrationPackage" ormtype="string" unique="true";
-	property name="integrationName" ormtype="string";
+	property name="activeFlag" ormtype="boolean";
 	property name="installedFlag" ormtype="boolean";
+	property name="integrationPackage" ormtype="string" unique="true" index="PI_INTEGRATIONPACKAGE";
+	property name="integrationName" ormtype="string";
+	property name="integrationTypeList" ormtype="string"; 
 	
-	property name="authenticationReadyFlag" ormtype="boolean";
-	property name="authenticationActiveFlag" ormtype="boolean";
-	property name="customReadyFlag" ormtype="boolean";
-	property name="customActiveFlag" ormtype="boolean";
-	property name="fw1ReadyFlag" ormtype="boolean";
-	property name="fw1ActiveFlag" ormtype="boolean";
-	property name="paymentReadyFlag" ormtype="boolean";
-	property name="paymentActiveFlag" ormtype="boolean";
-	property name="shippingReadyFlag" ormtype="boolean";
-	property name="shippingActiveFlag" ormtype="boolean";
+	// Related Object Properties (one-to-many)
+	property name="apps" type="array" cfc="App" singularname="app" fieldtype="one-to-many" fkcolumn="integrationID" inverse="true";
 	
 	// Audit Properties
 	property name="createdDateTime" hb_populateEnabled="false" ormtype="timestamp";
@@ -74,9 +68,19 @@ component displayname="Integration" entityname="SlatwallIntegration" table="SwIn
 	// Non-persistent properties
 	property name="enabledFlag" type="boolean" persistent="false";
 	
+	public any function init() {
+		if(!len(variables.integrationID)) {
+			this.setActiveFlag(0);
+		}
+		
+		return super.init();
+	}
 	
 	public boolean function getEnabledFlag() {
-		return getCustomActiveFlag() || getFW1ActiveFlag() || getPaymentActiveFlag() || getShippingActiveFlag();
+		if(isNull(getActiveFlag())) {
+			setActiveFlag(0);
+		}
+		return getActiveFlag();
 	}
 	
 	public array function getShippingMethodOptions( ) {
@@ -88,21 +92,28 @@ component displayname="Integration" entityname="SlatwallIntegration" table="SwIn
 			}
 		}
 		return variables.shippingMethodOptions;
-	}
-	
-	
+	}	
+
 	public any function getIntegrationCFC( string integrationType="" ) {
 		switch (arguments.integrationType) {
 			case "authentication" : {
 				return getService("integrationService").getAuthenticationIntegrationCFC(this);
 				break;
-			}
+			} 
 			case "payment" : {
 				return getService("integrationService").getPaymentIntegrationCFC(this);
 				break;
 			}
+			case "data" : {
+				return getService("integrationService").getDataIntegrationCFC(this);
+				break;
+			}
 			case "shipping" : {
 				return getService("integrationService").getShippingIntegrationCFC(this);
+				break;
+			}
+			case "tax" : {
+				return getService("integrationService").getTaxIntegrationCFC(this);
 				break;
 			}
 			default : {
@@ -112,7 +123,7 @@ component displayname="Integration" entityname="SlatwallIntegration" table="SwIn
 	}
 	
 	public any function getSettings() {
-		if(!isNull(getInstalledFlag()) && getInstalledFlag()) {
+		if(!isNull(getInstalledFlag()) && getInstalledFlag() && !isNull(getIntegrationCFC())) {
 			return getIntegrationCFC().getSettings();	
 		}
 		return {};
@@ -135,7 +146,7 @@ component displayname="Integration" entityname="SlatwallIntegration" table="SwIn
 	// @hint helper function to return a Setting
 	public any function setting(required string settingName, array filterEntities=[], formatValue=false) {
 		if(structKeyExists(getSettings(), arguments.settingName)) {
-			return getService("settingService").getSettingValue(settingName="integration#getIntegrationPackage()##arguments.settingName#", object=this, filterEntities=arguments.filterEntities, formatValue=arguments.formatValue);	
+			return getService("settingService").getSettingValue(settingName="integration#lcase(getIntegrationPackage())##arguments.settingName#", object=this, filterEntities=arguments.filterEntities, formatValue=arguments.formatValue);	
 		}
 		return super.setting(argumentcollection=arguments);
 	}

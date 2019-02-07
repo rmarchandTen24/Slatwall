@@ -46,60 +46,93 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../../tags" />
+<cfimport prefix="hb" taglib="../../../../org/Hibachi/HibachiTags" />
+
 <cfparam name="rc.order" type="any" />
 <cfparam name="rc.edit" type="boolean" />
 
 <cfsilent>
-	<cfset local.chargeList = duplicate(rc.order.getOrderPaymentsSmartList()) />
-	<cfset local.chargeList.addFilter('orderPaymentType.systemCode', 'optCharge') />
-	<cfset local.chargeList.addFilter('orderPaymentStatusType.systemCode', 'opstActive') />
 	
-	<cfset local.creditList = duplicate(rc.order.getOrderPaymentsSmartList()) />
-	<cfset local.creditList.addFilter('orderPaymentType.systemCode', 'optCredit') />
-	<cfset local.creditList.addFilter('orderPaymentStatusType.systemCode', 'opstActive') />
+	<cfset local.collectionChargeList = $.slatwall.getService('orderService').getOrderPaymentCollectionList()  >
+	<cfset local.collectionChargeList.setDisplayProperties("paymentMethod.paymentMethodName,orderPaymentType.typeName,dynamicAmountFlag,amount,amountReceived,amountCredited",{
+	    isVisible=true,
+	    isSearchable=true,
+	    isDeletable=true
+	}) >
+	<cfset local.collectionChargeList.addDisplayProperty(displayProperty="orderPaymentID",columnConfig={isVisible=false})>
+	<cfset local.collectionChargeList.addFilter("order.orderID",rc.order.getOrderID())>
+	<cfset local.collectionChargeList.addFilter('orderPaymentType.systemCode', 'optCharge') >
+	<cfset local.collectionChargeList.addFilter('orderPaymentStatusType.systemCode', 'opstActive')>
+
 	
-	<cfset local.nonActiveList = duplicate(rc.order.getOrderPaymentsSmartList()) />
-	<cfset local.nonActiveList.addInFilter('orderPaymentStatusType.systemCode', 'opstInvalid,opstRemoved') />
+	
+	<cfset local.collectionCreditList = $.slatwall.getService('orderService').getOrderPaymentCollectionList()  >
+	<cfset local.collectionCreditList.setDisplayProperties("paymentMethod.paymentMethodName,orderPaymentType.typeName,dynamicAmountFlag,amount,amountReceived,amountCredited",{
+	    isVisible=true,
+	    isSearchable=true,
+	    isDeletable=true
+	}) >
+	<cfset local.collectionCreditList.addDisplayProperty(displayProperty="orderPaymentID",columnConfig={isVisible=false})>
+	<cfset local.collectionCreditList.addFilter("order.orderID",rc.order.getOrderID())>
+	<cfset local.collectionCreditList.addFilter('orderPaymentType.systemCode', 'optCredit') >
+	<cfset local.collectionCreditList.addFilter('orderPaymentStatusType.systemCode', 'opstActive')	>
+	
+	
+	
+	<cfset local.collectionNonActiveList = $.slatwall.getService('orderService').getOrderPaymentCollectionList()  >
+	<cfset local.collectionNonActiveList.setDisplayProperties("paymentMethod.paymentMethodName,orderPaymentType.typeName,dynamicAmountFlag,amount,amountReceived,amountCredited",{
+	    isVisible=true,
+	    isSearchable=true,
+	    isDeletable=true
+	}) >
+	<cfset local.collectionNonActiveList.addDisplayProperty(displayProperty="orderPaymentID",columnConfig={isVisible=false})>
+	<cfset local.collectionNonActiveList.addFilter("order.orderID",rc.order.getOrderID())>
+	<cfset local.collectionNonActiveList.addFilter(propertyIdentifier="orderPaymentStatusType.systemCode",value="opstInvalid",filterGroupAlias="nonActive")>
+	<cfset local.collectionNonActiveList.addFilter(propertyIdentifier="orderPaymentStatusType.systemCode",value="opstRemoved",comparisonOperator="=",logicalOperator="OR",filterGroupAlias="nonActive")>
+
 </cfsilent>
 
 <cfoutput>
-	<h5>#$.slatwall.rbKey('admin.entity.ordertabs.orderpayments.charges')#</h5>
-	<cf_HibachiListingDisplay smartList="#local.chargeList#" 
+	
+	
+	
+	
+	
+	<hb:HibachiListingDisplay title="#$.slatwall.rbKey('admin.entity.ordertabs.orderpayments.charges')#" collectionList="#local.collectionChargeList#" 
 			recordDetailAction="admin:entity.detailorderpayment"
 			recordEditAction="admin:entity.editorderpayment">
-		<cf_HibachiListingColumn propertyIdentifier="paymentMethod.paymentMethodName" />
-		<cf_HibachiListingColumn propertyIdentifier="orderPaymentType.type" />
-		<cf_HibachiListingColumn propertyIdentifier="dynamicAmountFlag" />
-		<cf_HibachiListingColumn propertyIdentifier="amount" />
-		<cf_HibachiListingColumn propertyIdentifier="amountReceived" />
-		<cf_HibachiListingColumn propertyIdentifier="amountCredited" />
-	</cf_HibachiListingDisplay>
+		<hb:HibachiListingColumn propertyIdentifier="paymentMethod.paymentMethodName" />
+		<hb:HibachiListingColumn propertyIdentifier="orderPaymentType.typeName" />
+		<hb:HibachiListingColumn propertyIdentifier="dynamicAmountFlag" />
+		<hb:HibachiListingColumn propertyIdentifier="amount" />
+		<hb:HibachiListingColumn propertyIdentifier="amountReceived" />
+		<hb:HibachiListingColumn propertyIdentifier="amountCredited" />
+	</hb:HibachiListingDisplay>
 	
-	<h5>#$.slatwall.rbKey('admin.entity.ordertabs.orderpayments.credits')#</h5>
-	<cf_HibachiListingDisplay smartList="#local.creditList#" 
+	<hb:HibachiListingDisplay title="#$.slatwall.rbKey('admin.entity.ordertabs.orderpayments.credits')#" collectionList="#local.collectionCreditList#" 
 			recordDetailAction="admin:entity.detailorderpayment"
 			recordEditAction="admin:entity.editorderpayment">
-		<cf_HibachiListingColumn propertyIdentifier="paymentMethod.paymentMethodName" />
-		<cf_HibachiListingColumn propertyIdentifier="orderPaymentType.type" />
-		<cf_HibachiListingColumn propertyIdentifier="dynamicAmountFlag" />
-		<cf_HibachiListingColumn propertyIdentifier="amount" />
-		<cf_HibachiListingColumn propertyIdentifier="amountReceived" />
-		<cf_HibachiListingColumn propertyIdentifier="amountCredited" />
-	</cf_HibachiListingDisplay>
+		<hb:HibachiListingColumn propertyIdentifier="paymentMethod.paymentMethodName" />
+		<hb:HibachiListingColumn propertyIdentifier="orderPaymentType.typeName" />
+		<hb:HibachiListingColumn propertyIdentifier="dynamicAmountFlag" />
+		<hb:HibachiListingColumn propertyIdentifier="amount" />
+		<hb:HibachiListingColumn propertyIdentifier="amountReceived" />
+		<hb:HibachiListingColumn propertyIdentifier="amountCredited" />
+	</hb:HibachiListingDisplay>
 	
-	<h5>#$.slatwall.rbKey('admin.entity.ordertabs.orderpayments.nonActive')#</h5>
-	<cf_HibachiListingDisplay smartList="#local.nonActiveList#" 
+	<hb:HibachiListingDisplay title="#$.slatwall.rbKey('admin.entity.ordertabs.orderpayments.nonActive')#" collectionList="#local.collectionNonActiveList#" 
 			recordDetailAction="admin:entity.detailorderpayment"
 			recordEditAction="admin:entity.editorderpayment">
-		<cf_HibachiListingColumn propertyIdentifier="orderPaymentStatusType.type" />
-		<cf_HibachiListingColumn propertyIdentifier="paymentMethod.paymentMethodName" />
-		<cf_HibachiListingColumn propertyIdentifier="orderPaymentType.type" />
-		<cf_HibachiListingColumn propertyIdentifier="dynamicAmountFlag" search="false" range="false" sort="false" filter="false" />
-		<cf_HibachiListingColumn propertyIdentifier="amount" />
-		<cf_HibachiListingColumn propertyIdentifier="amountReceived" />
-		<cf_HibachiListingColumn propertyIdentifier="amountCredited" />
-	</cf_HibachiListingDisplay>
+		<hb:HibachiListingColumn propertyIdentifier="orderPaymentStatusType.typeName" />
+		<hb:HibachiListingColumn propertyIdentifier="paymentMethod.paymentMethodName" />
+		<hb:HibachiListingColumn propertyIdentifier="orderPaymentType.typeName" />
+		<hb:HibachiListingColumn propertyIdentifier="dynamicAmountFlag" search="false" range="false" sort="false" filter="false" />
+		<hb:HibachiListingColumn propertyIdentifier="amount" />
+		<hb:HibachiListingColumn propertyIdentifier="amountReceived" />
+		<hb:HibachiListingColumn propertyIdentifier="amountCredited" />
+	</hb:HibachiListingDisplay>
 	
-	<cf_HibachiProcessCaller action="admin:entity.preprocessorder" entity="#rc.order#" processContext="addOrderPayment" class="btn" icon="plus" modal="true" />
+	<hb:HibachiProcessCaller action="admin:entity.preprocessorder" entity="#rc.order#" processContext="addOrderPayment" class="btn btn-default" icon="plus" modal="true" hideDisabled="false" />
 	
 </cfoutput>

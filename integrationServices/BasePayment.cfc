@@ -60,6 +60,26 @@ component extends="Slatwall.org.Hibachi.HibachiObject" {
 		throw("The processCreditCard() Method was not setup for this integration service");	
 	}
 	
+	public boolean function getTestModeFlag(required any requestBean, string settingName="testingFlag"){
+		var testModeFlag = setting(argumentCollection=arguments);
+		
+		if(!isNull(arguments.requestBean.getOrder()) && !isNull(arguments.requestBean.getOrder().getTestOrderFlag()) && arguments.requestBean.getOrder().getTestOrderFlag()){
+			testModeFlag = arguments.requestBean.getOrder().getTestOrderFlag();
+		}
+		
+		return testModeFlag;
+	}
+	
+	public boolean function getLiveModeFlag(required any requestBean, string settingName="liveModeFlag"){
+		var liveModeFlag = setting(argumentCollection=arguments);
+		
+		if(!isNull(arguments.requestBean.getOrder()) && !isNull(arguments.requestBean.getOrder().getTestOrderFlag()) && arguments.requestBean.getOrder().getTestOrderFlag()){
+			liveModeFlag = false;
+		}
+		
+		return liveModeFlag;
+	}
+	
 	public string function getExternalPaymentHTML() {
 		return "";
 	}
@@ -77,7 +97,7 @@ component extends="Slatwall.org.Hibachi.HibachiObject" {
 		if(structKeyExists(getIntegration().getSettings(), arguments.settingName)) {
 			return getService("settingService").getSettingValue(settingName="integration#getPackageName()##arguments.settingName#", object=this, filterEntities=arguments.filterEntities, formatValue=arguments.formatValue);	
 		}
-		return super.setting(argumentcollection=arguments);
+		return getService("settingService").getSettingValue(settingName=arguments.settingName, object=this, filterEntities=arguments.filterEntities, formatValue=arguments.formatValue);
 	}
 	
 	// @hint helper function to return the integration entity that this belongs to

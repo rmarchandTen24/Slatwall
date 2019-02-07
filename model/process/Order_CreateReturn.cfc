@@ -51,6 +51,11 @@ component output="false" accessors="true" extends="HibachiProcess" {
 	// Injected Entity
 	property name="order";
 	
+	// Data Properties (ID's)
+	property name="copyFromType" ormtype="string" hb_rbKey="entity.copyFromType" hb_formFieldType="select";
+	property name="accountPaymentMethodID" hb_rbKey="entity.accountPaymentMethod" hb_formFieldType="select";
+	property name="accountAddressID" hb_rbKey="entity.accountAddress" hb_formFieldType="select";
+
 	// Data Properties
 	property name="location" cfc="Location" fieldtype="many-to-one" fkcolumn="locationID";
 	property name="orderItems" type="array" hb_populateArray="true";
@@ -58,6 +63,9 @@ component output="false" accessors="true" extends="HibachiProcess" {
 	property name="fulfillmentRefundAmount";
 	property name="refundOrderPaymentID" hb_formFieldType="select";
 	property name="receiveItemsFlag" hb_formFieldType="yesno" hb_sessionDefault="0";
+	property name="stockLossFlag" hb_formFieldType="yesno";
+	property name="saveAccountPaymentMethodFlag" hb_formFieldType="yesno" hb_populateEnabled="public";
+	property name="saveAccountPaymentMethodName" hb_rbKey="entity.accountPaymentMethod.accountPaymentMethodName" hb_populateEnabled="public";
 	property name="orderTypeCode" hb_formFieldType="select" hb_rbKey="entity.order.orderType";
 	
 
@@ -78,7 +86,11 @@ component output="false" accessors="true" extends="HibachiProcess" {
 	public array function getRefundOrderPaymentIDOptions() {
 		if(!structKeyExists(variables, "refundOrderPaymentIDOptions")) {
 			variables.refundOrderPaymentIDOptions = [];
-			for(var orderPayment in getOrder().getOrderPayments()) {
+			
+			var opSmartList = getOrder().getOrderPaymentsSmartList();
+			opSmartList.addFilter('orderPaymentStatusType.systemCode', 'opstActive');
+			
+			for(var orderPayment in opSmartList.getRecords()) {
 				arrayAppend(variables.refundOrderPaymentIDOptions, {name=orderPayment.getSimpleRepresentation(), value=orderPayment.getOrderPaymentID()});
 			}
 			arrayAppend(variables.refundOrderPaymentIDOptions, {name=rbKey('define.new'), value=""});
@@ -127,5 +139,23 @@ component output="false" accessors="true" extends="HibachiProcess" {
 			variables.orderTypeCode="otReturnOrder";
 		}
 		return variables.orderTypeCode;
+	}
+	
+	public boolean function orderItemsWithinOrginalQuantity(){
+		
+		if ( !isnull(this.getOrderItems()) ){
+			
+			for (var orderItem in this.getOrderItems()){
+
+				var orginalItem = getService("OrderService").getOrderItem(orderItem.referencedOrderItem.orderItemID);
+				if (orderItem.quantity > orginalItem.getQuantityDelivered()){
+					return false;
+				}
+			}			
+		}
+		
+		return true;
+		
+		
 	}
 }

@@ -54,6 +54,7 @@ component displayname="Comment" entityname="SlatwallComment" table="SwComment" p
 	property name="publicFlag" ormtype="boolean";
 	
 	// Related Object Properties (many-to-one)
+	property name="fulfillmentBatchItem" cfc="FulfillmentBatchItem" fieldtype="many-to-one" fkcolumn="fulfillmentBatchItemID";
 	
 	// Related Object Properties (one-to-many)
 	property name="commentRelationships" singularname="commentRelationship" cfc="CommentRelationship" type="array" fieldtype="one-to-many" fkcolumn="commentID" inverse="true" cascade="all-delete-orphan";
@@ -93,10 +94,33 @@ component displayname="Comment" entityname="SlatwallComment" table="SwComment" p
 		}
 		return variables.commentWithLinks;
 	}
-	
+
+    public boolean function canEdit(){
+        return this.isNew() || this.getCreatedByAccount().getAccountID() == getHibachiScope().getAccount().getAccountID();
+    }
+
 	// ============  END:  Non-Persistent Property Methods =================
 		
 	// ============= START: Bidirectional Helper Methods ===================
+	
+	// Fulfillment Batch (many-to-one)
+	public void function setFulfillmentBatchItem(required any fulfillmentBatchItem) {
+		variables.fulfillmentBatchItem = arguments.fulfillmentBatchItem;
+		if(isNew() or !arguments.fulfillmentBatchItem.hasComment( this )) {
+			arrayAppend(arguments.fulfillmentBatchItem.getComments(), this);
+		}
+	}
+	
+	public void function removeFulfillmentBatchItem(any fulfillmentBatchItem) {
+		if(!structKeyExists(arguments, "fulfillmentBatchItem")) {
+			arguments.fulfillmentBatchItem = variables.fulfillmentBatchItem;
+		}
+		var index = arrayFind(arguments.fulfillmentBatchItem.getComments(), this);
+		if(index > 0) {
+			arrayDeleteAt(arguments.fulfillmentBatchItem.getComments(), index);
+		}
+		structDelete(variables, "fulfillmentBatchItem");
+	}
 	
 	// Comment Relationships (one-to-many)
 	public void function addCommentRelationship(required any commentRelationship) {
@@ -117,12 +141,6 @@ component displayname="Comment" entityname="SlatwallComment" table="SwComment" p
 	// ==================  END:  Overridden Methods ========================
 	
 	// =================== START: ORM Event Hooks  =========================
-	
-	public void function preUpdate(struct oldData) {
-		if(oldData.comment != variables.comment) {
-			throw("You cannot update a comment because this would display a fundamental flaw in comment management.");	
-		}
-	}
 	
 	// ===================  END:  ORM Event Hooks  =========================
 }

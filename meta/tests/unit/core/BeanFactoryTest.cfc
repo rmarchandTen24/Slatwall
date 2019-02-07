@@ -47,16 +47,19 @@ Notes:
 
 */
 component extends="Slatwall.meta.tests.unit.SlatwallUnitTestBase" {
-
+	
 	public void function setUp() {
 		super.setup();
 		
-		variables.factory = new Slatwall.org.Hibachi.DI1.ioc("/Slatwall/model", {
+		variables.factory = new Slatwall.org.Hibachi.framework.ioc("/Slatwall/model", {
 			transients=["entity", "process", "transient"],
 			transientPattern="Bean$"
 		});
 	}
-
+	
+	/**
+	* @test
+	*/
 	public void function inst_factory() {
 		assertTrue(isObject(variables.factory));
 	}

@@ -65,6 +65,7 @@ component entityname="SlatwallVendor" table="SwVendor" persistent="true" accesso
 	property name="vendorAddresses" singularname="vendorAddress" type="array" cfc="VendorAddress" fieldtype="one-to-many" fkcolumn="vendorID" cascade="all-delete-orphan" inverse="true";
 	property name="vendorPhoneNumbers" singularname="vendorPhoneNumber" type="array" cfc="VendorPhoneNumber" fieldtype="one-to-many" fkcolumn="vendorID" cascade="all-delete-orphan" inverse="true";
 	property name="vendorEmailAddresses" singularname="vendorEmailAddress" type="array" cfc="VendorEmailAddress" fieldtype="one-to-many" fkcolumn="vendorID" cascade="all-delete-orphan" inverse="true";
+	property name="vendorAccounts" singularname="vendorAccount" cfc="VendorAccount" type="array" fieldtype="one-to-many" fkcolumn="vendorID" cascade="all-delete-orphan" inverse="true";
 	
 	// Related Object Properties (many-to-many - owner)
 	property name="brands" singularname="brand" cfc="Brand" fieldtype="many-to-many" linktable="SwVendorBrand" fkcolumn="vendorID" inversejoincolumn="brandID";
@@ -197,8 +198,8 @@ component entityname="SlatwallVendor" table="SwVendor" persistent="true" accesso
 		if(!isNull(variables.primaryEmailAddress)) {
 			return variables.primaryEmailAddress;
 		} else if (arrayLen(getVendorEmailAddresses())) {
-			setPrimaryEmailAddress(getVendorEmailAddresses()[i]);
-			return getVendorEmailAddresses()[i];
+			setPrimaryEmailAddress(getVendorEmailAddresses()[1]);
+			return getVendorEmailAddresses()[1];
 		} else {
 			return getService("vendorService").newVendorEmailAddress();
 		}
@@ -208,8 +209,8 @@ component entityname="SlatwallVendor" table="SwVendor" persistent="true" accesso
 		if(!isNull(variables.primaryPhoneNumber)) {
 			return variables.primaryPhoneNumber;
 		} else if (arrayLen(getVendorPhoneNumbers())) {
-			setPrimaryPhoneNumber(getVendorPhoneNumbers()[i]);
-			return getVendorPhoneNumbers()[i];
+			setPrimaryPhoneNumber(getVendorPhoneNumbers()[1]);
+			return getVendorPhoneNumbers()[1];
 		} else {
 			return getService("vendorService").newVendorPhoneNumber();
 		}
@@ -219,8 +220,8 @@ component entityname="SlatwallVendor" table="SwVendor" persistent="true" accesso
 		if(!isNull(variables.primaryAddress)) {
 			return variables.primaryAddress;
 		} else if (arrayLen(getVendorAddresses())) {
-			setPrimaryAddress(getVendorAddresses()[i]);
-			return getVendorAddresses()[i];
+			setPrimaryAddress(getVendorAddresses()[1]);
+			return getVendorAddresses()[1];
 		} else {
 			return getService("vendorService").newVendorAddress();
 		}

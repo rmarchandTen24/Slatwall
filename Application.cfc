@@ -53,18 +53,19 @@ component extends="org.Hibachi.Hibachi" output="false" {
 	// @hint this method always fires one time, even if the request is coming from an outside application.
 	public void function onEveryRequest() {
 		
+		
 	}
 	
 	// @hint this will fire 1 time if you are running the application.  If the application is bootstraped then it won't run
 	public void function onInternalRequest() {
-		if(listFindNoCase("public,frontend", getSubsystem(request.context.slatAction))) {
+		if(listFindNoCase("public", getSubsystem(request.context.slatAction))) {
 			getHibachiScope().setPublicPopulateFlag( true );
 		}
 	}
 	
 	public void function onFirstRequest() {
 		// Version
-		var versionFile = getDirectoryFromPath(getCurrentTemplatePath()) & "version.txt";
+		var versionFile = getDirectoryFromPath(getCurrentTemplatePath()) & "version.txt.cfm";
 		if( fileExists( versionFile ) ) {
 			request.slatwallScope.setApplicationValue("version", trim(fileRead(versionFile)));
 		} else {
@@ -85,30 +86,44 @@ component extends="org.Hibachi.Hibachi" output="false" {
 		
 		// SET Database Type
 		request.slatwallScope.setApplicationValue("databaseType", this.ormSettings.dialect);
+		// Reload All Integrations, we pass in the beanFactory and it is returned so that it can be updated it with any integration beans prefixed 
+		
+		getBeanFactory().getBean("integrationService").updateIntegrationsFromDirectory();
+		writeLog(file="Slatwall", text="General Log - Integrations have been updated & custom beans have been added to bean factory");
 	}
 	
 	public void function onUpdateRequest() {
-		// Setup Default Data... Not called on soft reloads.
-		getBeanFactory().getBean("dataService").loadDataFromXMLDirectory(xmlDirectory = ExpandPath("/Slatwall/config/dbdata"));
+		if(!getHibachiScope().getApplicationValue('skipDbData')){
+			// Setup Default Data... Not called on soft reloads.
+			getBeanFactory().getBean("hibachiDataService").loadDataFromXMLDirectory(xmlDirectory = ExpandPath("/Slatwall/config/dbdata"));
+		}
+		// Setup Default Data.. Not called on soft reloads
+		getBeanFactory().getBean('integrationService').loadDataFromIntegrations();
+		
 		writeLog(file="Slatwall", text="General Log - Default Data Has Been Confirmed");
 		
 		// Clear the setting cache so that it can be reloaded
 		getBeanFactory().getBean("hibachiCacheService").resetCachedKeyByPrefix('setting_');
 		writeLog(file="Slatwall", text="General Log - Setting Cache has been cleared because of updated request");
 		
+		// Clear the setting meta cache so that it can be reloaded
+        	getBeanFactory().getBean("hibachiCacheService").resetCachedKeyByPrefix('settingService_');
+        	writeLog(file="Slatwall", text="General Log - Setting Meta cache has been cleared because of updated request");
+		
 		// Run Scripts
-		getBeanFactory().getBean("updateService").runScripts();
+		if( !getHibachiScope().getApplicationValue('skipDbData')){
+			getBeanFactory().getBean("updateService").runScripts();
+		}
 		writeLog(file="Slatwall", text="General Log - Update Service Scripts Have been Run");
+		
 	}
 	
 	public void function onFirstRequestPostUpdate() {
-		
-		// Reload All Integrations, we pass in the beanFactory and it is returned so that it can be updated it with any integration beans prefixed 
-		var beanFactory = getBeanFactory().getBean("integrationService").updateIntegrationsFromDirectory( getBeanFactory() );
-		
-		setBeanFactory( beanFactory );
-		
-		writeLog(file="Slatwall", text="General Log - Integrations have been updated & custom beans have been added to bean factory");
+	}
+	
+	// Allows EncryptionService to setup encryption key during application initialization
+	public void function onBeanFactoryLoadComplete() {
+		getBeanFactory().getBean('encryptionService').verifyEncryptionKeyExists();
 	}
 	
 	// ===================================== END: HIBACHI HOOKS
@@ -134,36 +149,23 @@ component extends="org.Hibachi.Hibachi" output="false" {
 		if ( arguments.subsystem eq '' ) {
 			return '';
 		}
-		if ( !listFindNoCase('admin,frontend,public', arguments.subsystem) ) {
+		if ( !listFindNoCase('admin,api,public', arguments.subsystem) ) {
 			return 'integrationServices/' & arguments.subsystem & '/';
 		}
 		return arguments.subsystem & '/';
 	}
 	
-	// Allows for custom views to be created for the admin, frontend or public subsystems
+	// Allows for custom views to be created for the admin or public subsystems
 	public string function customizeViewOrLayoutPath( struct pathInfo, string type, string fullPath ) {
 		
 		arguments.fullPath = super.customizeViewOrLayoutPath(argumentcollection=arguments);
 		
 		if(listFindNoCase("admin,public", arguments.pathInfo.subsystem)){
-			var customFullPath = replace(replace(replace(arguments.fullPath, "/admin/", "/custom/admin/"), "/frontend/", "/custom/frontend/"), "/public/", "/custom/public/");
+			var customFullPath = replace(replace(arguments.fullPath, "/admin/", "/custom/admin/"), "/public/", "/custom/public/");
 			if(fileExists(expandPath(customFullPath))) {
 				arguments.fullPath = customFullPath;
 			}
 			
-		// DEPRECATED!!!
-		} else if(arguments.pathInfo.subsystem == "frontend" && arguments.type == "view" && structKeyExists(request, "muraScope")) {
-			
-			var themeView = replace(arguments.fullPath, "/Slatwall/frontend/views/", "#request.muraScope.siteConfig('themeAssetPath')#/display_objects/custom/slatwall/");
-			var siteView = replace(arguments.fullPath, "/Slatwall/frontend/views/", "#request.muraScope.siteConfig('assetPath')#/includes/display_objects/custom/slatwall/");
-
-			if(fileExists(expandPath(themeView))) {
-				arguments.fullPath = themeView;	
-			} else if (fileExists(expandPath(siteView))) {
-				arguments.fullPath = siteView;
-			}
-
-		
 		} else if(arguments.type eq "layout" && arguments.pathInfo.subsystem neq "common") {
 			if(arguments.pathInfo.path eq "default" && !fileExists(expandPath(arguments.fullPath))) {
 				arguments.fullPath = left(arguments.fullPath, findNoCase("/integrationServices/", arguments.fullPath)) & 'admin/layouts/default.cfm';

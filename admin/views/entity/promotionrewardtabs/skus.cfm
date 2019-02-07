@@ -46,18 +46,64 @@
 Notes:
 
 --->
+<cfimport prefix="swa" taglib="../../../../tags" />
+<cfimport prefix="hb" taglib="../../../../org/Hibachi/HibachiTags" />
+
 <cfparam name="rc.promotionreward" type="any">
 <cfparam name="rc.promotionperiod" type="any" default="#rc.promotionreward.getPromotionPeriod()#" />
 <cfparam name="rc.rewardType" type="string" default="#rc.promotionReward.getRewardType()#">
 <cfparam name="rc.edit" type="boolean">
 
+<cfset collectionAllSkus = $.slatwall.getService('SkuService').getSkuCollectionList()  >
+<cfset collectionAllSkus.setDisplayProperties("skuCode,product.productName",{
+    isVisible=true
+}) >
+<cfset collectionAllSkus.addDisplayProperty(displayProperty='skuID',columnConfig={
+		isVisible=false,
+		isSearchable=false,
+		isDeletable=false
+})/>
+
+<cfset collectionIncludedSkus = $.slatwall.getService('SkuService').getSkuCollectionList() >
+<cfset collectionIncludedSkus.setDisplayProperties("skuCode,product.productName",{
+    isVisible=true,
+    isSearchable=true,
+    isDeletable=false
+}) >
+<cfset collectionIncludedSkus.addFilter("promotionRewards.promotionRewardID","#rc.promotionReward.getPromotionRewardID()#") >
+<cfset collectionIncludedSkus.addDisplayProperty(displayProperty='skuID',columnConfig={
+		isVisible=false,
+		isSearchable=false,
+		isDeletable=false
+})/>
+
+<cfset collectionExcludedSkus = $.slatwall.getService('SkuService').getSkuCollectionList() >
+<cfset collectionExcludedSkus.setDisplayProperties("skuCode,product.productName",{
+    isVisible=true,
+    isSearchable=true,
+    isDeletable=false
+}) >
+<cfset collectionExcludedSkus.addFilter("promotionRewardExclusions.promotionRewardID","#rc.promotionReward.getPromotionRewardID()#") >
+<cfset collectionExcludedSkus.addDisplayProperty(displayProperty='skuID',columnConfig={
+		isVisible=false,
+		isSearchable=false,
+		isDeletable=false
+})/>
+
 <cfoutput>
-	<div class="span6">
-		<h5>#$.slatwall.rbKey('entity.promotionreward.skus')#</h5>
-		<cf_HibachiPropertyDisplay object="#rc.promotionreward#" property="skus" edit="#rc.edit#" displayType="plain" />
-	</div>
-	<div class="span6">
-		<h5>#$.slatwall.rbKey('entity.promotionreward.excludedskus')#</h5>
-		<cf_HibachiPropertyDisplay object="#rc.promotionreward#" property="excludedSkus" edit="#rc.edit#" displayType="plain" />
-	</div>
+    <cfif rc.edit>
+    	<div class="col-md-6">
+    		<hb:HibachiFieldDisplay valueOptionsCollectionList="#collectionAllSkus#" value="#collectionIncludedSkus.getPrimaryIDList()#" fieldType="listingMultiselect" title="Included Skus" fieldName="skus" edit="#rc.edit#" displaytype="plainTitle" />
+    	</div>
+    	<div class="col-md-6">
+    	    <hb:HibachiFieldDisplay valueOptionsCollectionList="#collectionAllSkus#" value="#collectionExcludedSkus.getPrimaryIDList()#" fieldType="listingMultiselect" title="Excluded Skus" fieldName="excludedSkus" edit="#rc.edit#" displaytype="plainTitle" />
+    	</div>
+    <cfelse>
+        <div class="col-md-6">
+            <hb:HibachiFieldDisplay valueOptionsCollectionList="#collectionIncludedSkus#" value="#collectionIncludedSkus.getPrimaryIDList()#" fieldType="listingMultiselect" title="Included Skus" fieldName="skus" edit="#rc.edit#" displaytype="plainTitle" />
+    	</div>
+    	<div class="col-md-6">
+    	    <hb:HibachiFieldDisplay valueOptionsCollectionList="#collectionExcludedSkus#" value="#collectionExcludedSkus.getPrimaryIDList()#" fieldType="listingMultiselect" title="Excluded Skus" fieldName="excludedSkus" edit="#rc.edit#" displaytype="plainTitle" />
+    	</div>
+    </cfif>
 </cfoutput>
