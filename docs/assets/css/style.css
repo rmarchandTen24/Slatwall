@@ -2,6 +2,7 @@
 ---
 
 @import "{{ site.theme }}";
+@import "main.css;
 
 .page-header {
     color: #fff;
