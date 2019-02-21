@@ -894,6 +894,7 @@ if( isDefined("arguments.car") )
 1. [metadata](#metadata)
 1. [email templates](#emailtemplates)
 1. [materialized paths](#materializedpaths)
+1. [debugging](#debugging)
 
 
 
