@@ -890,9 +890,9 @@ if( isDefined("arguments.car") )
 1. [entity queue](#entity queue)
 1. [permissions](#permissions)
 1. [record level permissions](#recordlevelpermissions)
-1. [security practices](#securitys practices)
+1. [security practices](#securitypractices)
 1. [metadata](#metadata)
-1. [email templates](#email templates)
+1. [email templates](#emailtemplates)
 1. [materialized paths](#materializedpaths)
 
 
