@@ -868,12 +868,41 @@ if( isDefined("arguments.car") )
 1. [git and github](#git)
 1. [Hibachi Tags definitive guide](#hibachitagsguide)
 1. [On Missing Method](#missingmethod)
+1. [webpack](#webpack)
+	org/Hibachi/client/webpack.config - describes how to build hibachi bundle and vendor bundle
+	org/Hibachi/client/webpack-frontend.config - describes how to build frontend bundle
+	admin/client/webpack.config - describes how to build slatwall admin bundle
+	custom/client/webpack.config - describes custom admin bundle
 1. [angular/typescript](#angulartypescript)
+	Where does our typescript live?
+		There is a hierachy to where the typescript resides
+			core Hibachi code for Generic Object interaction in
+				org/Hibachi/client
+			core Slatwall code for Ecommerce
+				admin/client
+			custom code for specific client 
+				custom/client
+	inside each folder the stucture is
+		src - this folder contains all our code
+		lib - this folder contains all 3rd party code such as jquery, angular, datejs, etc.
+		typings - this folders contents are generated atutomatically. It is used for intellisense and linting.
+	What types of bundles do we have and how do i generate a bundle?
+		org/Hibachi/client/vendor.bundle.js - contains all 3rd party js
+			can be build by running npm run buildHibachi
+		org/Hibachi/client/src/bundle.js
+			npm run buildHibachi
+		admin/client/src/bundle.js - slatwall admin bundle
+			npm run buildSlatwall - for develop bundle
+			npm run buildSlatwall:prod - for production bundle
+		custom/client/src/bundle.js - custom admin bundle
+			npm run build{customName} -for building custom bundle
+		org/Hibachi/src/slatwall.js - frontend bundle
+		npm run buildSlatwall - for slatwall admin bundle
+		npm run buildSlatwall:prod - for slatwall admin production bundle
 1. [angular components](#angularcomponents)
 1. [angular behavioral directives](#angularbehavioraldirectives)
 1. [angular structural directives](#angularstructuraldirectives)
 1. [angular modules](#angularmodules)
-1. [webpack](#webpack)
 1. [devops](#devops)
 1. [hibachiscope](#hibachiscope)
 1. [api](#API)
