@@ -854,6 +854,7 @@ if( isDefined("arguments.car") )
 		1. [TODO app](#entity)
 			1. [How to create an entity](#entity)
 			1. [bidirectionals](#bidirectional)
+				bidirectionals are convienent. add example of bidirectional. However they are expensive. If your relationship will have many records in a one-to-many or many-to-many. Avoid using bidrectionals. Instead declare inverse=true on the dominant side of the relationship. see https://stackoverflow.com/questions/20723013/using-inverse-true-in-hibernate
 			1. [How to create a service](#service)
 			1. [How to create a controller](#controller)
 			1. [How to create a detail page](#detailpage)
