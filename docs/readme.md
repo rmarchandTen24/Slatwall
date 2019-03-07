@@ -848,10 +848,10 @@ if( isDefined("arguments.car") )
 	1. [Request Lifecycle](#requestlifecycle)
 	1. [Configuring Hibachi](#configuringhibachi)
 	1. [ORM](#orm)
-		```
-		https://www.slideshare.net/ortussolutions/itb2017-slaying-the-orm-dragons-with-cborm
-		https://www.slideshare.net/MashaEdelen/let-coldfusion-orm-do-the-work-for-you
-		```
+
+		* https://www.slideshare.net/ortussolutions/itb2017-slaying-the-orm-dragons-with-cborm
+		* https://www.slideshare.net/MashaEdelen/let-coldfusion-orm-do-the-work-for-you
+
 		1. [flushing](#flushing)
 		1. [calculatedProperties](#calculatedProperties)
 		1. [reload and update](#reloadandupdate)
@@ -859,8 +859,9 @@ if( isDefined("arguments.car") )
 			1. [How to create an entity](#entity)
 			1. [bidirectionals](#bidirectional)
 				```
-				bidirectionals are convienent. add example of bidirectional. However they are expensive. If your relationship will have many records in a one-to-many or many-to-many. Avoid using bidrectionals. Instead declare inverse=true on the dominant side of the relationship. see https://stackoverflow.com/questions/20723013/using-inverse-true-in-hibernate
+				bidirectionals are convienent. add example of bidirectional. However they are expensive. If your relationship will have many records in a one-to-many or many-to-many. Avoid using bidrectionals. Instead declare inverse=true on the dominant side of the relationship. 
 				```
+				* see https://stackoverflow.com/questions/20723013/using-inverse-true-in-hibernate
 			1. [How to create a service](#service)
 			1. [How to create a controller](#controller)
 			1. [How to create a detail page](#detailpage)
