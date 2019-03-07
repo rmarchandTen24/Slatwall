@@ -878,6 +878,7 @@ if( isDefined("arguments.car") )
 	admin/client/webpack.config - describes how to build slatwall admin bundle
 	custom/client/webpack.config - describes custom admin bundle
 1. [angular/typescript](#angulartypescript)
+	```
 	Where does our typescript live?
 		There is a hierachy to where the typescript resides
 			core Hibachi code for Generic Object interaction in
@@ -903,6 +904,7 @@ if( isDefined("arguments.car") )
 		org/Hibachi/src/slatwall.js - frontend bundle
 		npm run buildSlatwall - for slatwall admin bundle
 		npm run buildSlatwall:prod - for slatwall admin production bundle
+	```
 1. [angular components](#angularcomponents)
 1. [angular behavioral directives](#angularbehavioraldirectives)
 1. [angular structural directives](#angularstructuraldirectives)
