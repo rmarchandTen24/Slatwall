@@ -848,15 +848,19 @@ if( isDefined("arguments.car") )
 	1. [Request Lifecycle](#requestlifecycle)
 	1. [Configuring Hibachi](#configuringhibachi)
 	1. [ORM](#orm)
+		```
 		https://www.slideshare.net/ortussolutions/itb2017-slaying-the-orm-dragons-with-cborm
 		https://www.slideshare.net/MashaEdelen/let-coldfusion-orm-do-the-work-for-you
+		```
 		1. [flushing](#flushing)
 		1. [calculatedProperties](#calculatedProperties)
 		1. [reload and update](#reloadandupdate)
 		1. [TODO app](#entity)
 			1. [How to create an entity](#entity)
 			1. [bidirectionals](#bidirectional)
+				```
 				bidirectionals are convienent. add example of bidirectional. However they are expensive. If your relationship will have many records in a one-to-many or many-to-many. Avoid using bidrectionals. Instead declare inverse=true on the dominant side of the relationship. see https://stackoverflow.com/questions/20723013/using-inverse-true-in-hibernate
+				```
 			1. [How to create a service](#service)
 			1. [How to create a controller](#controller)
 			1. [How to create a detail page](#detailpage)
@@ -873,10 +877,12 @@ if( isDefined("arguments.car") )
 1. [Hibachi Tags definitive guide](#hibachitagsguide)
 1. [On Missing Method](#missingmethod)
 1. [webpack](#webpack)
+	```
 	org/Hibachi/client/webpack.config - describes how to build hibachi bundle and vendor bundle
 	org/Hibachi/client/webpack-frontend.config - describes how to build frontend bundle
 	admin/client/webpack.config - describes how to build slatwall admin bundle
 	custom/client/webpack.config - describes custom admin bundle
+	```
 1. [angular/typescript](#angulartypescript)
 	```
 	Where does our typescript live?
@@ -931,6 +937,7 @@ if( isDefined("arguments.car") )
 1. [materialized paths](#materializedpaths)
 1. [debugging](#debugging)
 1. [populate](#populate)
+```
 Dependency Injection
 		Testing
 		Continuous Integration
@@ -938,7 +945,7 @@ Debugging & Toubleshooting
 		Tips: writeDump; abort;
 		Fusion Reactor & Performance
 		Fusion Debug
-
+```
 
 
 **[[⬆]](#TOC)**
