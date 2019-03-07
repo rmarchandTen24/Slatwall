@@ -848,6 +848,8 @@ if( isDefined("arguments.car") )
 	1. [Request Lifecycle](#requestlifecycle)
 	1. [Configuring Hibachi](#configuringhibachi)
 	1. [ORM](#orm)
+		https://www.slideshare.net/ortussolutions/itb2017-slaying-the-orm-dragons-with-cborm
+		https://www.slideshare.net/MashaEdelen/let-coldfusion-orm-do-the-work-for-you
 		1. [flushing](#flushing)
 		1. [calculatedProperties](#calculatedProperties)
 		1. [reload and update](#reloadandupdate)
