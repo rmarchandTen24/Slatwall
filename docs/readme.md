@@ -848,11 +848,20 @@ if( isDefined("arguments.car") )
 	1. [Request Lifecycle](#requestlifecycle)
 	1. [Configuring Hibachi](#configuringhibachi)
 	1. [ORM](#orm)
+
+		* https://www.slideshare.net/ortussolutions/itb2017-slaying-the-orm-dragons-with-cborm
+		* https://www.slideshare.net/MashaEdelen/let-coldfusion-orm-do-the-work-for-you
+
 		1. [flushing](#flushing)
 		1. [calculatedProperties](#calculatedProperties)
 		1. [reload and update](#reloadandupdate)
 		1. [TODO app](#entity)
 			1. [How to create an entity](#entity)
+			1. [bidirectionals](#bidirectional)
+				<p>
+				bidirectionals are convienent. add example of bidirectional. However they are expensive. If your relationship will have many records in a one-to-many or many-to-many. Avoid using bidrectionals. Instead declare inverse=true on the dominant side of the relationship. 
+				</p>
+				* see https://stackoverflow.com/questions/20723013/using-inverse-true-in-hibernate
 			1. [How to create a service](#service)
 			1. [How to create a controller](#controller)
 			1. [How to create a detail page](#detailpage)
@@ -868,12 +877,49 @@ if( isDefined("arguments.car") )
 1. [git and github](#git)
 1. [Hibachi Tags definitive guide](#hibachitagsguide)
 1. [On Missing Method](#missingmethod)
+1. [webpack](#webpack)
+	```
+	org/Hibachi/client/webpack.config - describes how to build hibachi bundle and vendor bundle
+	org/Hibachi/client/webpack-frontend.config - describes how to build frontend bundle
+	admin/client/webpack.config - describes how to build slatwall admin bundle
+	custom/client/webpack.config - describes custom admin bundle
+	```
 1. [angular/typescript](#angulartypescript)
+	```
+	Where does our typescript live?
+		There is a hierachy to where the typescript resides
+			core Hibachi code for Generic Object interaction in
+				org/Hibachi/client
+			core Slatwall code for Ecommerce
+				admin/client
+			custom code for specific client 
+				custom/client
+	inside each folder the stucture is
+		src - this folder contains all our code
+		lib - this folder contains all 3rd party code such as jquery, angular, datejs, etc.
+		typings - this folders contents are generated atutomatically. It is used for intellisense and linting.
+	What types of bundles do we have and how do i generate a bundle?
+		org/Hibachi/client/vendor.bundle.js - contains all 3rd party js
+			can be build by running npm run buildHibachi
+		org/Hibachi/client/src/bundle.js
+			npm run buildHibachi
+		admin/client/src/bundle.js - slatwall admin bundle
+			npm run buildSlatwall - for develop bundle
+			npm run buildSlatwall:prod - for production bundle
+		custom/client/src/bundle.js - custom admin bundle
+			npm run build{customName} -for building custom bundle
+		org/Hibachi/src/slatwall.js - frontend bundle
+		npm run buildSlatwall - for slatwall admin bundle
+		npm run buildSlatwall:prod - for slatwall admin production bundle
+	```
+1. [angular sytle guide]
+	* https://github.com/johnpapa/angular-styleguide/blob/master/a1/README.md#angular-1-style-guide
 1. [angular components](#angularcomponents)
 1. [angular behavioral directives](#angularbehavioraldirectives)
 1. [angular structural directives](#angularstructuraldirectives)
 1. [angular modules](#angularmodules)
-1. [webpack](#webpack)
+1. [angular controllerAs]
+	* https://github.com/johnpapa/angular-styleguide/blob/master/a1/README.md#directives-and-controlleras
 1. [devops](#devops)
 1. [hibachiscope](#hibachiscope)
 1. [api](#API)
@@ -895,7 +941,16 @@ if( isDefined("arguments.car") )
 1. [email templates](#emailtemplates)
 1. [materialized paths](#materializedpaths)
 1. [debugging](#debugging)
-
+1. [populate](#populate)
+```
+Dependency Injection
+		Testing
+		Continuous Integration
+Debugging & Toubleshooting
+		Tips: writeDump; abort;
+		Fusion Reactor & Performance
+		Fusion Debug
+```
 
 
 **[[⬆]](#TOC)**
