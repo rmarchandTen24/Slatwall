@@ -875,6 +875,9 @@ if( isDefined("arguments.car") )
 1. [Custom Properties/attributes](#custompropertiesattributes)	
 1. [RB Keys the definitive guide](#rbkeyguide)
 1. [git and github](#git)
+	```
+	https://github.com/k88hudson/git-flight-rules
+	```
 1. [Hibachi Tags definitive guide](#hibachitagsguide)
 1. [On Missing Method](#missingmethod)
 1. [webpack](#webpack)
