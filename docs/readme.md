@@ -876,7 +876,7 @@ if( isDefined("arguments.car") )
 1. [RB Keys the definitive guide](#rbkeyguide)
 1. [git and github](#git)
 	```
-	https://github.com/k88hudson/git-flight-rules
+	<a href="https://github.com/k88hudson/git-flight-rules">https://github.com/k88hudson/git-flight-rules</a>
 	```
 1. [Hibachi Tags definitive guide](#hibachitagsguide)
 1. [On Missing Method](#missingmethod)
@@ -916,13 +916,17 @@ if( isDefined("arguments.car") )
 		npm run buildSlatwall:prod - for slatwall admin production bundle
 	```
 1. [angular style guide](#angularstyleguide)
+	```
 	* <a href="https://github.com/johnpapa/angular-styleguide/blob/master/a1/README.md#angular-1-style-guide">https://github.com/johnpapa/angular-styleguide/blob/master/a1/README.md#angular-1-style-guide</a>
+	```
 1. [angular components](#angularcomponents)
 1. [angular behavioral directives](#angularbehavioraldirectives)
 1. [angular structural directives](#angularstructuraldirectives)
 1. [angular modules](#angularmodules)
 1. [angular controllerAs](#angularcontrolleras)
+	```
 	*  <a href="https://github.com/johnpapa/angular-styleguide/blob/master/a1/README.md#directives-and-controlleras/">https://github.com/johnpapa/angular-styleguide/blob/master/a1/README.md#directives-and-controlleras/</a>
+	```
 1. [devops](#devops)
 1. [hibachiscope](#hibachiscope)
 1. [api](#API)
