@@ -875,6 +875,9 @@ if( isDefined("arguments.car") )
 1. [Custom Properties/attributes](#custompropertiesattributes)	
 1. [RB Keys the definitive guide](#rbkeyguide)
 1. [git and github](#git)
+	```
+	https://github.com/k88hudson/git-flight-rules
+	```
 1. [Hibachi Tags definitive guide](#hibachitagsguide)
 1. [On Missing Method](#missingmethod)
 1. [webpack](#webpack)
@@ -912,14 +915,14 @@ if( isDefined("arguments.car") )
 		npm run buildSlatwall - for slatwall admin bundle
 		npm run buildSlatwall:prod - for slatwall admin production bundle
 	```
-1. [angular sytle guide]
-	* https://github.com/johnpapa/angular-styleguide/blob/master/a1/README.md#angular-1-style-guide
+1. [angular style guide](#angularstyleguide)
+	* <a href="https://github.com/johnpapa/angular-styleguide/blob/master/a1/README.md#angular-1-style-guide">https://github.com/johnpapa/angular-styleguide/blob/master/a1/README.md#angular-1-style-guide</a>
 1. [angular components](#angularcomponents)
 1. [angular behavioral directives](#angularbehavioraldirectives)
 1. [angular structural directives](#angularstructuraldirectives)
 1. [angular modules](#angularmodules)
-1. [angular controllerAs]
-	* https://github.com/johnpapa/angular-styleguide/blob/master/a1/README.md#directives-and-controlleras
+1. [angular controllerAs](#angularcontrolleras)
+	*  <a href="https://github.com/johnpapa/angular-styleguide/blob/master/a1/README.md#directives-and-controlleras/">https://github.com/johnpapa/angular-styleguide/blob/master/a1/README.md#directives-and-controlleras/</a>
 1. [devops](#devops)
 1. [hibachiscope](#hibachiscope)
 1. [api](#API)
