@@ -428,7 +428,8 @@ Prefer the `new` declaration over the `createObject` declaration to improve read
 
 ``` js
 // do this
-obj = new Slatwall.Application();
+obj = new 
+.Application();
 
 // dont this
 obj = createObject( "component", "Slatwall.Application" ).init();
@@ -926,6 +927,38 @@ if( isDefined("arguments.car") )
 1. [slatwallcms](#slatwallcms)
 1. [integration](#integration)
 1. [settings](#settings)
+	1.[Where are settings](#wherearesettings)
+	```
+	go to model/service/settingService.cfc
+	go to function getAllSettingMetaData 
+	* https://github.com/ten24/slatwall/blob/master/model/service/SettingService.cfc#L115
+	all settings are defined here
+	
+	1. [Defining a setting](#Definingasetting)
+	all settings are defined in this structure with a prefix
+	The prefix defines how the setting inheritence will work.
+	you can define a setting with the following keys
+	{
+		fieldtype:defines how the user will select values via the ui,
+		defaultValue:defines the value if a user hasn't specified one,
+		formatType:how to format the value in the view,
+		valueOptions:if the fieldtype is of 'select' then it will contain an array of values,
+		validate: strict rules on what type of data can be used
+	}
+	
+	1. [How Inheritence works](#HowInheritenceworks)
+	A prefix of global is a basic setting and has no inheritence
+	if the prefix is and entity name then the setting follows the inheritence rules defined in 
+	getSettingLookupOrder 
+	* https://github.com/ten24/slatwall/blob/master/model/service/SettingService.cfc#L99
+	this describes the order that the value will be looked up at falling back to the defaultValue as the final lookup
+	
+	
+	1. [Using template strings in defaultValue](#templatestringsetting)
+	
+	1. [How to use site settings](#siteSettings)
+	
+	```
 1. [routes/urlrewriting](#routes)
 1. [dbdata](#dbdata)
 1. [preupdate scripts/update scripts/migrations](#updatescripts)
