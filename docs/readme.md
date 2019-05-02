@@ -957,7 +957,7 @@ if( isDefined("arguments.car") )
 	this describes the order that the value will be looked up at falling back to the defaultValue as the final lookup
 	```
 	
-	1. [Using template strings in defaultValue](#templatestringsetting)
+	example: 
 	
 	1. [How to use site settings](#siteSettings)
 	
