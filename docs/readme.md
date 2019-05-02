@@ -932,7 +932,9 @@ if( isDefined("arguments.car") )
 	```
 	go to model/service/settingService.cfc
 	go to function getAllSettingMetaData 
+	```
 	* https://github.com/ten24/slatwall/blob/master/model/service/SettingService.cfc#L115
+	```
 	all settings are defined here
 	```
 	1. [Defining a setting](#Definingasetting)
@@ -953,7 +955,9 @@ if( isDefined("arguments.car") )
 	A prefix of global is a basic setting and has no inheritence
 	if the prefix is and entity name then the setting follows the inheritence rules defined in 
 	getSettingLookupOrder 
+	```
 	* https://github.com/ten24/slatwall/blob/master/model/service/SettingService.cfc#L99
+	```
 	this describes the order that the value will be looked up at falling back to the defaultValue as the final lookup
 	```
 	
